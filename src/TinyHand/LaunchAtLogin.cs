@@ -39,10 +39,13 @@ internal static class LaunchAtLogin
         }
     }
 
-    /// <summary>Keep the Run entry pointing at this exe if the app moved (e.g. after an update).</summary>
+    /// <summary>
+    /// Keep the Run entry pointing at this exe if the app moved (e.g. after an update). Only the
+    /// installed app does this, so running a dev build or a portable copy never takes it over.
+    /// </summary>
     public static void RefreshPath()
     {
-        if (Enabled)
+        if (Enabled && Updater.IsInstalled)
         {
             using var key = Registry.CurrentUser.OpenSubKey(RunKey, writable: true);
             if (key?.GetValue(ValueName) as string != Command)

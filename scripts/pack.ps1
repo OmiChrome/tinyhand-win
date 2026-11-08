@@ -33,7 +33,7 @@ dotnet vpk pack `
     --packDir $publish `
     --mainExe TinyHand.exe `
     --packTitle TinyHand `
-    --packAuthors 'Omi' `
+    --packAuthors 'OmiChrome' `
     --icon assets/AppIcon.ico `
     --framework net10.0-x64-desktop `
     --outputDir $releases

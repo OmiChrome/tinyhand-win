@@ -6,7 +6,7 @@ namespace TinyHand;
 
 internal readonly record struct Shortcut(uint Vk, uint Modifiers, string Display)
 {
-    public static readonly Shortcut ToggleDefault = new(0x48, Win32.MOD_CONTROL | Win32.MOD_ALT, "Ctrl+Alt+H");
+    public static readonly Shortcut ToggleDefault = new(0x41, Win32.MOD_CONTROL | Win32.MOD_ALT, "Ctrl+Alt+A");
     public static readonly Shortcut ClearDefault = new(0x58, Win32.MOD_CONTROL | Win32.MOD_ALT, "Ctrl+Alt+X");
 }
 

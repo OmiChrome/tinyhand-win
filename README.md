@@ -22,13 +22,13 @@ Works on Windows 10 and 11 (64-bit).
 
 | | |
 |---|---|
-| Click the tray icon or press **Ctrl+Alt+H** | Turn it on or off |
+| Click the tray icon or press **Ctrl+Alt+A** | Turn it on or off |
 | Right-click the tray icon | Open the menu and settings |
 | Click | Tap without clicking what's underneath |
 | Click and drag | Draw on the screen |
 | Hold **Alt** and click | Click normally |
 | **Ctrl+Alt+X** | Clear your drawing |
-| **Esc** | Clear everything and turn it off |
+| **Esc** | Put it away and get your cursor back |
 
 When it's on, a small toolbar at the bottom of the screen lets you<br />
 switch between 36 hands and a laser dot, change the ink colour, mute the sound, or close it.

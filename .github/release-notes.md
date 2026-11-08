@@ -15,7 +15,7 @@
 <p align="center"><sub>Windows 10 or later · x64 · updates itself</sub></p>
 
 <p align="center">
-  <b>Ctrl+Alt+H</b> on/off &nbsp;·&nbsp; <b>Click</b> to tap &nbsp;·&nbsp; <b>Drag</b> to draw &nbsp;·&nbsp; <b>Alt+Click</b> for real &nbsp;·&nbsp; <b>Esc</b> to exit
+  <b>Ctrl+Alt+A</b> on/off &nbsp;·&nbsp; <b>Click</b> to tap &nbsp;·&nbsp; <b>Drag</b> to draw &nbsp;·&nbsp; <b>Alt+Click</b> for real &nbsp;·&nbsp; <b>Esc</b> to exit
 </p>
 
 <h3 align="center">How it's made</h3>

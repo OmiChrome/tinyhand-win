@@ -14,9 +14,10 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>..\..\assets\AppIcon.ico</ApplicationIcon>
     <Product>TinyHand</Product>
-    <Authors>Omi</Authors>
-    <Company>Omi</Company>
-    <Copyright>© 2026 Omi. MIT License.</Copyright>
+    <Authors>OmiChrome</Authors>
+    <!-- Shown as "Publisher" in Task Manager's Startup apps and in Installed apps. -->
+    <Company>OmiChrome</Company>
+    <Copyright>© 2026 OmiChrome. MIT License.</Copyright>
     <Version>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\..\VERSION').Trim())</Version>
     <InvariantGlobalization>true</InvariantGlobalization>
     <TieredPGO>true</TieredPGO>
