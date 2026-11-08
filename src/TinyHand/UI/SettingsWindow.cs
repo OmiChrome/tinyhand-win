@@ -28,17 +28,18 @@ internal sealed class SettingsWindow : Window
     public Func<Shortcut, bool>? ApplyClearShortcut { get; init; }
     public event Action<bool>? RecordingChanged;
 
-    private static readonly (SettingsSection Section, string Glyph, Color Tint)[] Sections =
+    private static readonly (SettingsSection Section, string Glyph, Color Tint, string Detail)[] Sections =
     {
-        (SettingsSection.General, Icons.Settings, Color.FromRgb(0x8C, 0x8C, 0x8C)),
-        (SettingsSection.Pointers, Icons.Hand, Color.FromRgb(0x8C, 0x6B, 0xF2)),
-        (SettingsSection.Appearance, Icons.Sparkle, Color.FromRgb(0xF2, 0x73, 0x99)),
-        (SettingsSection.Drawing, Icons.Pen, Color.FromRgb(0xF5, 0x94, 0x33)),
-        (SettingsSection.Sound, Icons.Volume, Color.FromRgb(0x33, 0x8C, 0xFA)),
-        (SettingsSection.About, Icons.Info, Color.FromRgb(0x73, 0x73, 0x73)),
+        (SettingsSection.General, Icons.Settings, Color.FromRgb(0x8C, 0x8C, 0x8C), "Shortcuts and startup"),
+        (SettingsSection.Pointers, Icons.Hand, Color.FromRgb(0x8C, 0x6B, 0xF2), "Your toolbar and hands"),
+        (SettingsSection.Appearance, Icons.Sparkle, Color.FromRgb(0xF2, 0x73, 0x99), "Size and shadow"),
+        (SettingsSection.Drawing, Icons.Pen, Color.FromRgb(0xF5, 0x94, 0x33), "Ink colour and fading"),
+        (SettingsSection.Sound, Icons.Volume, Color.FromRgb(0x33, 0x8C, 0xFA), "Tap sounds"),
+        (SettingsSection.About, Icons.Info, Color.FromRgb(0x73, 0x73, 0x73), "Version and links"),
     };
 
-    private readonly StackPanel sidebarItems = new();
+    // The six sections share the sidebar's height evenly, so there is no dead space.
+    private readonly UniformGrid sidebarItems = new() { Columns = 1 };
     private readonly ContentControl page = new();
     private readonly ScrollViewer scroller;
     private SettingsSection section = SettingsSection.General;
@@ -58,9 +59,9 @@ internal sealed class SettingsWindow : Window
     public SettingsWindow()
     {
         Title = "TinyHand Settings";
-        Width = 880;
+        Width = 940;
         Height = 640;
-        MinWidth = 760;
+        MinWidth = 820;
         MinHeight = 520;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         Icon = Icons.AppIcon;
@@ -68,19 +69,25 @@ internal sealed class SettingsWindow : Window
         UseLayoutRounding = true;
 
         var root = new Grid();
-        root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(240) });
+        root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(280) });
         root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-        var sidebar = new DockPanel { Margin = new Thickness(12, 16, 12, 16), LastChildFill = false };
-        var brand = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(10, 0, 0, 0) };
-        brand.Children.Add(Ui.Picture(Icons.AppIcon, 22));
-        var brandName = Ui.Text("TinyHand", 13, weight: FontWeights.SemiBold);
-        brandName.Margin = new Thickness(8, 0, 0, 0);
-        brandName.VerticalAlignment = VerticalAlignment.Center;
-        brand.Children.Add(brandName);
-        DockPanel.SetDock(brand, Dock.Bottom);
+        // Sidebar: app header on top, then the sections filling the rest of the height.
+        var sidebar = new DockPanel { Margin = new Thickness(14, 18, 14, 18) };
+        var brand = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(8, 0, 0, 14) };
+        brand.Children.Add(Ui.Picture(Icons.AppIcon, 44));
+        var brandText = new StackPanel { Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        brandText.Children.Add(new TextBlock
+        {
+            Text = "TinyHand",
+            FontSize = 22,
+            FontFamily = Ui.DisplayFont,
+            FontWeight = FontWeights.SemiBold,
+        }.Res(TextBlock.ForegroundProperty, Ui.TextPrimary));
+        brandText.Children.Add(Ui.Text($"Version {AppController.Version}", 13, Ui.TextSecondary));
+        brand.Children.Add(brandText);
+        DockPanel.SetDock(brand, Dock.Top);
         sidebar.Children.Add(brand);
-        DockPanel.SetDock(sidebarItems, Dock.Top);
         sidebar.Children.Add(sidebarItems);
         root.Children.Add(sidebar);
 
@@ -140,20 +147,25 @@ internal sealed class SettingsWindow : Window
     private void BuildSidebar()
     {
         sidebarItems.Children.Clear();
-        foreach (var (s, glyph, tint) in Sections)
+        foreach (var (s, glyph, tint, detail) in Sections)
         {
-            var row = new StackPanel { Orientation = Orientation.Horizontal };
-            row.Children.Add(Ui.IconTile(glyph, tint));
-            var label = Ui.Text(s.ToString(), 14, weight: s == section ? FontWeights.SemiBold : FontWeights.Normal);
-            label.Margin = new Thickness(12, 0, 0, 0);
-            label.VerticalAlignment = VerticalAlignment.Center;
-            row.Children.Add(label);
+            var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            var tile = Ui.IconTile(glyph, tint);
+            tile.Width = tile.Height = 36;
+            tile.CornerRadius = new CornerRadius(9);
+            ((TextBlock)tile.Child).FontSize = 17;
+            row.Children.Add(tile);
+            var text = new StackPanel { Margin = new Thickness(14, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+            text.Children.Add(Ui.Text(s.ToString(), 16, weight: s == section ? FontWeights.SemiBold : FontWeights.Medium));
+            text.Children.Add(Ui.Text(detail, 12.5, Ui.TextSecondary));
+            row.Children.Add(text);
             var item = new Border
             {
                 Child = row,
-                Padding = new Thickness(10, 7, 10, 7),
-                Margin = new Thickness(0, 1, 0, 1),
-                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(12, 6, 12, 6),
+                Margin = new Thickness(0, 2, 0, 2),
+                MinHeight = 60,
+                CornerRadius = new CornerRadius(8),
                 Background = Brushes.Transparent,
                 Cursor = Cursors.Hand,
             };
