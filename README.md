@@ -1,7 +1,3 @@
-> [!WARNING]
-> This is a Windows rewrite of the original [TinyHand](https://github.com/nilbuild/tinyhand).
-> All rights belong to [github.com/nilbuild](https://github.com/nilbuild).
-
 <img src="./.github/logo.png" width="80" />
 
 # TinyHand
@@ -11,6 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
 A tiny hand on a stick that points at things on your Windows screen.
+Windows port of [nilbuild/tinyhand](https://github.com/nilbuild/tinyhand).
 
 <img src="./.github/banner.jpg" alt="TinyHand: a tiny hand for Windows" />
 
@@ -43,6 +40,11 @@ dotnet run --project tinyhand-win/src/TinyHand
 Needs the [.NET 10 SDK](https://dotnet.microsoft.com/download). The original app is in the
 `tinyhand` submodule; `scripts/sync-upstream.ps1` updates it and lists what changed.
 Bump `VERSION` on `main` to publish a release.
+
+## Credits
+
+Based on [TinyHand](https://github.com/nilbuild/tinyhand) by [nilbuild](https://github.com/nilbuild).
+The hand images and sounds come from the original project.
 
 ## License
 

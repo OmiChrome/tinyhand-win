@@ -25,4 +25,4 @@
   a low-level mouse hook turns clicks into taps · WPF Fluent settings · Velopack updates
 </p>
 
-<p align="center"><sub>A Windows rewrite of <a href="https://github.com/nilbuild/tinyhand">TinyHand</a> · all rights belong to <a href="https://github.com/nilbuild">nilbuild</a> · MIT License</sub></p>
+<p align="center"><sub>Based on <a href="https://github.com/nilbuild/tinyhand">TinyHand</a> by <a href="https://github.com/nilbuild">nilbuild</a> · MIT License</sub></p>
