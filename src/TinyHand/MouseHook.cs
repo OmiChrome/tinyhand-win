@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using TinyHand.Native;
 
 namespace TinyHand;
@@ -13,7 +13,6 @@ internal sealed class MouseHook : IDisposable
 {
     public Action<POINT>? OnMouseDown;
     public Action? OnMouseUp;
-    public Action? OnLeftDragged;
     public Action? OnMoved;
     public Action? OnInteractDown;
     public Action? OnInteractUp;
@@ -32,7 +31,6 @@ internal sealed class MouseHook : IDisposable
     private volatile int interactVk;
     private volatile bool interactPress;
     private bool passingThrough;
-    private bool leftHeld;
 
     public bool IsInstalled => hook != IntPtr.Zero;
 
@@ -76,7 +74,6 @@ internal sealed class MouseHook : IDisposable
             if (msg.message == InstallMessage && hook == IntPtr.Zero)
             {
                 passingThrough = false;
-                leftHeld = false;
                 hook = Win32.SetWindowsHookEx(Win32.WH_MOUSE_LL, proc, Win32.GetModuleHandle(null), 0);
                 if (hook == IntPtr.Zero)
                 {
@@ -111,11 +108,8 @@ internal sealed class MouseHook : IDisposable
 
         if (m == Win32.WM_MOUSEMOVE)
         {
+            // Drawing follows the cursor on the render thread; a move just wakes it up.
             OnMoved?.Invoke();
-            if (leftHeld && !interactPress && !passingThrough)
-            {
-                OnLeftDragged?.Invoke();
-            }
             return Win32.CallNextHookEx(hook, nCode, wParam, lParam);
         }
 
@@ -163,15 +157,10 @@ internal sealed class MouseHook : IDisposable
 
         if (down)
         {
-            if (m == Win32.WM_LBUTTONDOWN)
-            {
-                leftHeld = true;
-            }
             OnMouseDown?.Invoke(info.pt);
         }
         else
         {
-            leftHeld = false;
             OnMouseUp?.Invoke();
         }
         return new IntPtr(1); // swallowed: the app underneath never sees it
