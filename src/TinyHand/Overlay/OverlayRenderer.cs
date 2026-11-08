@@ -256,6 +256,11 @@ internal sealed class OverlayRenderer : IDisposable
         Win32.DestroyWindow(hwnd);
     }
 
+    // TH_TEST_RECREATE=1 forces one graphics rebuild 2 s after turning on (to test recovery).
+    private static readonly bool TestRecreate = Environment.GetEnvironmentVariable("TH_TEST_RECREATE") == "1";
+    private bool testRecreated;
+    private double activatedAt;
+
     // TH_PERF=1 logs per-second frame stats.
     private static readonly bool Perf = Environment.GetEnvironmentVariable("TH_PERF") == "1";
     private int perfTicks, perfFrames;
@@ -447,8 +452,29 @@ internal sealed class OverlayRenderer : IDisposable
             needsFrame = true;
             monitor = default;
             lastTick = clock.Elapsed.TotalSeconds;
-            Tick();
-            Render();
+            activatedAt = lastTick;
+            try
+            {
+                Tick();
+                Render();
+            }
+            catch (Exception e)
+            {
+                // Never stay on with an invisible hand: rebuild the graphics and try once more.
+                Log.Write($"first frame failed, rebuilding graphics: {e.Message}");
+                RecreateDevice();
+                try
+                {
+                    monitor = default;
+                    Tick();
+                    Render();
+                }
+                catch (Exception again)
+                {
+                    Log.Write($"first frame failed again: {again}");
+                }
+            }
+            // Show the window whatever happened above; the render loop keeps retrying frames.
             Win32.SetWindowPos(hwnd, Win32.HWND_TOPMOST, 0, 0, 0, 0,
                 Win32.SWP_NOMOVE | Win32.SWP_NOSIZE | Win32.SWP_NOACTIVATE | Win32.SWP_SHOWWINDOW);
         }
@@ -464,11 +490,19 @@ internal sealed class OverlayRenderer : IDisposable
             // Blank frame so the next activation doesn't flash the old pose.
             if (target != null && ctx != null && swapChain != null)
             {
-                ctx.Target = target;
-                ctx.BeginDraw();
-                ctx.Clear(new Color4(0, 0, 0, 0));
-                ctx.EndDraw();
-                swapChain.Present(0, PresentFlags.None);
+                try
+                {
+                    ctx.Target = target;
+                    ctx.BeginDraw();
+                    ctx.Clear(new Color4(0, 0, 0, 0));
+                    ctx.EndDraw();
+                    ctx.Target = null;
+                    swapChain.Present(0, PresentFlags.None);
+                }
+                catch (Exception e)
+                {
+                    Log.Write($"clearing the overlay failed: {e.Message}");
+                }
             }
             Win32.ShowWindow(hwnd, Win32.SW_HIDE);
         }
@@ -512,15 +546,36 @@ internal sealed class OverlayRenderer : IDisposable
         MonitorChanged?.Invoke(next);
     }
 
+    private uint swapWidth;
+    private uint swapHeight;
+
     private void ResizeSwapChain(uint width, uint height)
     {
         if (ctx == null || dxgi == null || visual == null || dcomp == null)
         {
             return;
         }
+        // Same size (every activation on the same monitor): nothing to do. Resizing anyway failed
+        // with DXGI_ERROR_INVALID_CALL while a screen recorder held the buffers, which left the
+        // overlay with nothing to draw on.
+        if (swapChain != null && target != null && width == swapWidth && height == swapHeight)
+        {
+            return;
+        }
         ctx.Target = null;
         target?.Dispose();
         target = null;
+        if (swapChain != null)
+        {
+            var resized = swapChain.ResizeBuffers(2, width, height, Format.B8G8R8A8_UNorm, SwapChainFlags.None);
+            if (resized.Failure)
+            {
+                // The buffers are still in use (e.g. by a screen capture): start a fresh swap chain.
+                Log.Write($"swap chain resize failed (0x{resized.Code:X8}); making a new one");
+                swapChain.Dispose();
+                swapChain = null;
+            }
+        }
         if (swapChain == null)
         {
             using var adapter = dxgi.GetAdapter();
@@ -541,10 +596,8 @@ internal sealed class OverlayRenderer : IDisposable
             visual.SetContent(swapChain);
             dcomp.Commit();
         }
-        else
-        {
-            swapChain.ResizeBuffers(2, width, height, Format.B8G8R8A8_UNorm, SwapChainFlags.None).CheckError();
-        }
+        swapWidth = width;
+        swapHeight = height;
         using var surface = swapChain.GetBuffer<IDXGISurface>(0);
         target = ctx.CreateBitmapFromDxgiSurface(surface, new BitmapProperties1(
             new PixelFormat(Format.B8G8R8A8_UNorm, Vortice.DCommon.AlphaMode.Premultiplied), 96, 96,
@@ -569,6 +622,30 @@ internal sealed class OverlayRenderer : IDisposable
             // Other topmost windows (taskbar, popups) can rise above us; stay on top.
             lastTopmost = now;
             Win32.SetWindowPos(hwnd, Win32.HWND_TOPMOST, 0, 0, 0, 0, Win32.SWP_NOMOVE | Win32.SWP_NOSIZE | Win32.SWP_NOACTIVATE);
+            // Health checks: the hand must never silently vanish while the pointer is on.
+            bool forceRebuild = TestRecreate && !testRecreated && now - activatedAt > 2;
+            if (forceRebuild)
+            {
+                testRecreated = true;
+                Log.Write("TH_TEST_RECREATE: forcing a graphics rebuild");
+            }
+            bool invalid = !forceRebuild && dcomp != null && !dcomp.CheckDeviceState();
+            if (invalid)
+            {
+                Log.Write("composition device became invalid; rebuilding graphics");
+            }
+            if (forceRebuild || invalid)
+            {
+                RecreateDevice();
+                needsFrame = true;
+            }
+            // (Skipped during the first frame, which is drawn before the window is shown.)
+            if (now - activatedAt > 1 && !Win32.IsWindowVisible(hwnd))
+            {
+                Log.Write("overlay window was hidden while on; showing it again");
+                Win32.SetWindowPos(hwnd, Win32.HWND_TOPMOST, 0, 0, 0, 0,
+                    Win32.SWP_NOMOVE | Win32.SWP_NOSIZE | Win32.SWP_NOACTIVATE | Win32.SWP_SHOWWINDOW);
+            }
         }
 
         EnsureAsset();
@@ -700,6 +777,11 @@ internal sealed class OverlayRenderer : IDisposable
 
     private void Render()
     {
+        if (ctx != null && target == null && monitor.Handle != IntPtr.Zero)
+        {
+            // Lost the surface somehow: get a new one rather than silently drawing nothing.
+            ResizeSwapChain((uint)monitor.Bounds.Width, (uint)monitor.Bounds.Height);
+        }
         if (ctx == null || target == null || swapChain == null || brush == null || roundStroke == null || factory == null)
         {
             return;
@@ -715,50 +797,80 @@ internal sealed class OverlayRenderer : IDisposable
             pointer = ctx.CreateCommandList();
             ctx.Target = pointer;
             ctx.BeginDraw();
-            if (handImage == null)
+            try
             {
-                DrawLaserDot();
+                if (handImage == null)
+                {
+                    DrawLaserDot();
+                }
+                else
+                {
+                    DrawHand(asset!, handImage);
+                }
             }
-            else
+            finally
             {
-                DrawHand(asset!, handImage);
+                ctx.EndDraw();
+                ctx.Target = null;
+                pointer.Close();
             }
-            ctx.EndDraw();
-            pointer.Close();
         }
 
+        SharpGen.Runtime.Result end = default;
         ctx.Target = target;
         ctx.BeginDraw();
-        ctx.Clear(new Color4(0, 0, 0, 0));
-        ctx.Transform = Matrix3x2.Identity;
-        ink.Draw(ctx, factory, roundStroke, brush, monitor.Scale, now);
-
-        if (pointer != null && shadow != null)
+        try
         {
-            if (style.IsLaser || asset == null)
+            ctx.Clear(new Color4(0, 0, 0, 0));
+            ctx.Transform = Matrix3x2.Identity;
+            ink.Draw(ctx, factory, roundStroke, brush, monitor.Scale, now);
+
+            if (pointer != null && shadow != null)
             {
-                double r = LaserRadius();
-                shadow.SetInput(0, pointer, true);
-                shadow.BlurStandardDeviation = (float)(r * (2.2 + 1.0 * pressAmount) / 2);
-                shadow.Color = new Vector4(1f, 0.16f, 0.12f, 1f);
-                ctx.DrawImage(shadow, InterpolationMode.Linear, Vortice.Direct2D1.CompositeMode.SourceOver);
+                if (style.IsLaser || asset == null)
+                {
+                    double r = LaserRadius();
+                    shadow.SetInput(0, pointer, true);
+                    shadow.BlurStandardDeviation = (float)(r * (2.2 + 1.0 * pressAmount) / 2);
+                    shadow.Color = new Vector4(1f, 0.16f, 0.12f, 1f);
+                    ctx.DrawImage(shadow, InterpolationMode.Linear, Vortice.Direct2D1.CompositeMode.SourceOver);
+                }
+                else if (showShadow)
+                {
+                    // macOS: shadowOffset (lift*0.6, -lift) in a y-up world = right and down on screen.
+                    float radius = (float)(Math.Max(1, poseLift * 0.35) + 5 * pressAmount);
+                    shadow.SetInput(0, pointer, true);
+                    shadow.BlurStandardDeviation = radius / 2;
+                    shadow.Color = new Vector4(0, 0, 0, (float)(0.26 + 0.02 * pressAmount));
+                    var offset = new Vector2((float)(poseLift * 0.6), (float)poseLift);
+                    ctx.DrawImage(shadow, offset, InterpolationMode.Linear, Vortice.Direct2D1.CompositeMode.SourceOver);
+                }
+                ctx.DrawImage(pointer, InterpolationMode.Linear, Vortice.Direct2D1.CompositeMode.SourceOver);
             }
-            else if (showShadow)
-            {
-                // macOS: shadowOffset (lift*0.6, -lift) in a y-up world = right and down on screen.
-                float radius = (float)(Math.Max(1, poseLift * 0.35) + 5 * pressAmount);
-                shadow.SetInput(0, pointer, true);
-                shadow.BlurStandardDeviation = radius / 2;
-                shadow.Color = new Vector4(0, 0, 0, (float)(0.26 + 0.02 * pressAmount));
-                var offset = new Vector2((float)(poseLift * 0.6), (float)poseLift);
-                ctx.DrawImage(shadow, offset, InterpolationMode.Linear, Vortice.Direct2D1.CompositeMode.SourceOver);
-            }
-            ctx.DrawImage(pointer, InterpolationMode.Linear, Vortice.Direct2D1.CompositeMode.SourceOver);
         }
-        ctx.EndDraw();
-        pointer?.Dispose();
+        finally
+        {
+            // Always close the pass and let go of the back buffer, even if drawing failed;
+            // an open pass keeps the buffer referenced and every later resize fails.
+            end = ctx.EndDraw();
+            ctx.Target = null;
+            shadow?.SetInput(0, null, false);
+            pointer?.Dispose();
+        }
+        if (end.Failure)
+        {
+            Log.Write($"drawing failed (0x{end.Code:X8}); rebuilding graphics");
+            RecreateDevice();
+            return;
+        }
         long drawn = Stopwatch.GetTimestamp();
-        swapChain.Present(1, PresentFlags.None);
+        var presented = swapChain.Present(1, PresentFlags.None);
+        if (presented.Failure)
+        {
+            Log.Write($"present failed (0x{presented.Code:X8}); rebuilding graphics");
+            RecreateDevice();
+            return;
+        }
         lastDrawMs = (drawn - drawStart) * 1000.0 / Stopwatch.Frequency;
     }
 

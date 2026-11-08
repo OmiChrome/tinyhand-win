@@ -221,6 +221,7 @@ internal sealed class OverlayController : IDisposable
             return;
         }
         IsActive = false;
+        Log.Write("deactivate");
         timer.Stop();
         tapSound.Hold(false);
         hook.SetActive(false);
