@@ -67,6 +67,7 @@ internal sealed class SettingsWindow : Window
         Icon = Icons.AppIcon;
         FontFamily = Ui.Font;
         UseLayoutRounding = true;
+        Theme.ApplyWindow(this);
 
         var root = new Grid();
         root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(280) });
@@ -659,9 +660,11 @@ internal sealed class SettingsWindow : Window
 
     private UIElement MakeHandPage()
     {
-        var idea = new TextBox { Text = handIdea, MaxWidth = 420, HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 360, Padding = new Thickness(8, 5, 8, 5) };
+        var idea = new TextBox { Text = handIdea, FontSize = 14, Padding = new Thickness(10, 6, 10, 6) };
         idea.TextChanged += (_, _) => handIdea = idea.Text;
-        SetPlaceholder(idea, "e.g. knitted wool in mustard yellow");
+        var ideaField = WithPlaceholder(idea, "e.g. knitted wool in mustard yellow");
+        ideaField.Width = 420;
+        ideaField.HorizontalAlignment = HorizontalAlignment.Left;
 
         var buttons = new StackPanel { Orientation = Orientation.Horizontal };
         buttons.Children.Add(Ui.Button("Open in ChatGPT", OpenChatGpt, accent: true, glyph: Icons.OpenExternal));
@@ -670,30 +673,28 @@ internal sealed class SettingsWindow : Window
         buttons.Children.Add(copy);
 
         return Column(28,
-            Step(1, "Describe it", "What should your hand look like?", idea),
+            Step(1, "Describe it", "What should your hand look like?", ideaField),
             Step(2, "Make the image",
                 "Open it in ChatGPT, or copy the prompt for another image tool. Download the result as a PNG with a transparent background.",
                 buttons),
             Step(3, "Add it", null, draft == null ? DropZone() : DraftPreview(draft)));
     }
 
-    private static void SetPlaceholder(TextBox box, string placeholder)
+    /// <summary>WPF has no placeholder text: lay a grey label over the box that hides once there's text.</summary>
+    private static Grid WithPlaceholder(TextBox box, string placeholder)
     {
-        // The Fluent theme shows this as the placeholder text.
-        box.SetValue(FrameworkElement.TagProperty, placeholder);
-        box.ToolTip = placeholder;
-        if (box.Text.Length == 0)
-        {
-            var hint = new VisualBrush(Ui.Text(placeholder, 13, Ui.TextTertiary))
-            {
-                Stretch = Stretch.None,
-                AlignmentX = AlignmentX.Left,
-                Transform = new TranslateTransform(10, 0),
-            };
-            void Update() => box.Background = box.Text.Length == 0 ? hint : null;
-            box.TextChanged += (_, _) => Update();
-            box.Loaded += (_, _) => Update();
-        }
+        var hint = Ui.Text(placeholder, box.FontSize, Ui.TextTertiary);
+        hint.IsHitTestVisible = false;
+        hint.TextWrapping = TextWrapping.NoWrap;
+        hint.VerticalAlignment = VerticalAlignment.Center;
+        hint.Margin = new Thickness(box.Padding.Left + 3, 0, box.Padding.Right, 0);
+        void Update() => hint.Visibility = box.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        box.TextChanged += (_, _) => Update();
+        Update();
+        var grid = new Grid();
+        grid.Children.Add(box);
+        grid.Children.Add(hint);
+        return grid;
     }
 
     private static UIElement Step(int number, string title, string? detail, UIElement content)
@@ -1043,7 +1044,8 @@ internal sealed class SettingsWindow : Window
     {
         var stack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
         var g = Icons.Glyph(glyph, 20);
-        g.SetResourceReference(TextBlock.ForegroundProperty, selected ? Ui.Accent : Ui.TextSecondary);
+        // Primary text colour, not the accent: with a grey accent the selected icon looked disabled.
+        g.SetResourceReference(TextBlock.ForegroundProperty, selected ? Ui.TextPrimary : Ui.TextSecondary);
         stack.Children.Add(g);
         var t = Ui.Text(title, 13, selected ? Ui.TextPrimary : Ui.TextSecondary, selected ? FontWeights.SemiBold : FontWeights.Normal);
         t.HorizontalAlignment = HorizontalAlignment.Center;

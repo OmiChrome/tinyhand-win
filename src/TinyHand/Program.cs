@@ -47,8 +47,9 @@ internal static class Program
         };
 
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
-        // Windows 11 Fluent styling (Mica, rounded controls) that follows the system light/dark mode.
-        app.ThemeMode = ThemeMode.System;
+        // Fluent controls, but always dark and in TinyHand's own colours (not the user's accent).
+        app.ThemeMode = ThemeMode.Dark;
+        UI.Theme.Apply(app);
         app.DispatcherUnhandledException += (_, e) =>
         {
             Log.Write($"UI error: {e.Exception}");

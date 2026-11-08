@@ -177,7 +177,7 @@ internal sealed class OverlayController : IDisposable
             return;
         }
         IsActive = true;
-        tapSound.Warm();
+        tapSound.Hold(true);
         CursorHider.Hide();
         normalCursor = false;
         hook.InteractVk = Preferences.InteractKey.VirtualKey();
@@ -222,6 +222,7 @@ internal sealed class OverlayController : IDisposable
         }
         IsActive = false;
         timer.Stop();
+        tapSound.Hold(false);
         hook.SetActive(false);
         hook.PassThroughRects = Array.Empty<RECT>();
         renderer.SetActive(false);
@@ -407,5 +408,6 @@ internal sealed class OverlayController : IDisposable
         Deactivate();
         hook.Dispose();
         renderer.Dispose();
+        tapSound.Dispose();
     }
 }

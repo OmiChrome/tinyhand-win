@@ -19,7 +19,7 @@
     <Company>OmiChrome</Company>
     <Copyright>© 2026 OmiChrome. MIT License.</Copyright>
     <Version>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\..\VERSION').Trim())</Version>
-    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Not InvariantGlobalization: WPF text boxes look up the keyboard's culture on every keystroke. -->
     <TieredPGO>true</TieredPGO>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <!-- WPF0001: ThemeMode (Fluent theme) is marked experimental. -->
@@ -30,6 +30,7 @@
     <PackageReference Include="Vortice.Direct2D1" Version="3.8.3" />
     <PackageReference Include="Vortice.Direct3D11" Version="3.8.3" />
     <PackageReference Include="Vortice.DirectComposition" Version="3.8.3" />
+    <PackageReference Include="Vortice.XAudio2" Version="3.8.3" />
     <PackageReference Include="Velopack" Version="1.2.161" />
   </ItemGroup>
 

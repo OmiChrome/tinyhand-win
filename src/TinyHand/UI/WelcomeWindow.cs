@@ -22,6 +22,7 @@ internal sealed class WelcomeWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         Icon = Icons.AppIcon;
         FontFamily = Ui.Font;
+        Theme.ApplyWindow(this);
 
         var stack = new StackPanel { Margin = new Thickness(32, 28, 32, 28), HorizontalAlignment = HorizontalAlignment.Center };
         var icon = Ui.Picture(Icons.AppIcon, 80);
