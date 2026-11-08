@@ -9,6 +9,12 @@ namespace TinyHand;
 internal static class Updater
 {
     public const string RepoUrl = "https://github.com/OmiChrome/tinyhand-win";
+
+    /// <summary>
+    /// Update feed (releases.win.json + package), published to GitHub Pages by the release workflow
+    /// so the GitHub releases themselves only carry the installer and the portable zip.
+    /// </summary>
+    public const string FeedUrl = "https://omichrome.github.io/tinyhand-win/updates";
     private static readonly TimeSpan CheckEvery = TimeSpan.FromHours(6);
 
     private static UpdateManager? manager;
@@ -45,7 +51,7 @@ internal static class Updater
             {
                 try
                 {
-                    manager = new UpdateManager(new GithubSource(RepoUrl, null, false));
+                    manager = new UpdateManager(new SimpleWebSource(FeedUrl));
                 }
                 catch (Exception e)
                 {
