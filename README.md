@@ -1,23 +1,23 @@
 <img src="./.github/logo.png" width="80" />
 
-# TinyHand for Windows
+# TinyHand
+
+[![Latest release](https://img.shields.io/github/v/release/OmiChrome/tinyhand-win?display_name=tag&sort=semver&cacheSeconds=3600)](https://github.com/OmiChrome/tinyhand-win/releases/latest)
+[![Platform: Windows](https://img.shields.io/badge/platform-Windows-lightgrey)](https://github.com/OmiChrome/tinyhand-win/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
 A tiny hand on a stick that points at things on your Windows screen.
 
-This is a Windows 10/11 port of [TinyHand](https://github.com/nilbuild/tinyhand) by
-[Kamran Ahmed](https://github.com/kamranahmedse), originally a macOS app. The original
-repo is linked as a git submodule in [`upstream/`](./upstream) so its latest code is always
-one command away (see [Keeping up with the original](#keeping-up-with-the-original)).
+<img src="./.github/banner.jpg" alt="TinyHand: a tiny hand for Windows" />
 
-<img src="./.github/banner.jpg" alt="TinyHand: a tiny hand on a stick" />
+[![Download for Windows](https://img.shields.io/badge/Download_for_Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/OmiChrome/tinyhand-win/releases/latest/download/TinyHand-win-Setup.exe)
+
+Windows 10 or later, x64. A port of [TinyHand](https://github.com/nilbuild/tinyhand) by Kamran Ahmed.
 
 ## Install
 
-Download `TinyHand-win-Setup.exe` from the [latest release](https://github.com/OmiChrome/tinyhand-windows/releases/latest)
-and run it. TinyHand installs for your user only (no admin needed), opens at sign-in, and updates itself.
-
-Windows may show a SmartScreen warning because the installer isn't code-signed yet:
-choose **More info → Run anyway**.
+Run `TinyHand-win-Setup.exe`. If SmartScreen warns you, choose **More info → Run anyway**.
+TinyHand opens at sign-in and updates itself.
 
 ## Use
 
@@ -32,59 +32,19 @@ choose **More info → Run anyway**.
 | **Esc** | Clear everything and turn the pointer off |
 
 While the pointer is on, a small toolbar at the bottom of the screen lets you pick one of
-36 hands or a laser dot, change the ink colour, mute the tap sound, or exit. You can also make
-your own hand from any image in **Settings → Pointers → Make your own**.
-
-Tip: Windows 11 hides new tray icons in the overflow menu (^). Drag TinyHand onto the taskbar
-to keep it visible.
-
-## How it works on Windows
-
-| macOS original | Windows port |
-|---|---|
-| AppKit overlay window + Core Animation | Click-through layered window with a DirectComposition swap chain, drawn with Direct2D on the GPU |
-| `CGEventTap` (needs Accessibility) | Low-level mouse hook (`WH_MOUSE_LL`), no permission needed |
-| `CGDisplayHideCursor` | Every system cursor swapped for a blank one, restored on exit (a watchdog restores it even if TinyHand is killed) |
-| Menu bar item | Notification area (tray) icon |
-| Carbon hotkeys | `RegisterHotKey` |
-| Sparkle | [Velopack](https://velopack.io) with GitHub Releases |
-| SwiftUI settings | WPF with the Windows 11 Fluent theme |
-
-Known differences:
-
-- Clicks on windows of apps running as Administrator can't be intercepted unless TinyHand
-  also runs as Administrator (a Windows security rule).
-- Apps that draw their own custom cursor can still show it while the pointer is on.
-- On some keyboard layouts Ctrl+Alt acts as AltGr; change the shortcuts in Settings if they clash.
+36 hands or a laser dot, change the ink colour, mute the tap sound, or exit.
 
 ## Build
 
-Requirements: Windows 10 2004+ or Windows 11, the [.NET 10 SDK](https://dotnet.microsoft.com/download).
-
 ```powershell
-git clone --recurse-submodules https://github.com/OmiChrome/tinyhand-windows
-cd tinyhand-windows
-dotnet run --project src/TinyHand
+git clone --recurse-submodules https://github.com/OmiChrome/tinyhand-win
+dotnet run --project tinyhand-win/src/TinyHand
 ```
 
-Settings live in `%APPDATA%\TinyHand`, logs in `%LOCALAPPDATA%\TinyHand.Data\TinyHand.log`.
-
-### Make an installer
-
-```powershell
-./scripts/pack.ps1          # builds Releases/TinyHand-win-Setup.exe with Velopack
-```
-
-Releases are built by GitHub Actions when a `v*` tag is pushed.
-
-## Keeping up with the original
-
-```powershell
-./scripts/sync-upstream.ps1   # pulls the latest nilbuild/tinyhand into upstream/ and lists what changed
-```
-
-The Windows code lives in `src/`; the hand images and sounds in `assets/` come from the original.
+Needs the [.NET 10 SDK](https://dotnet.microsoft.com/download). The original app is in the
+`tinyhand` submodule; `scripts/sync-upstream.ps1` updates it and lists what changed.
+Bump `VERSION` on `main` to publish a release.
 
 ## License
 
-MIT. See [LICENSE](LICENSE). Original app © Kamran Ahmed.
+MIT. See [LICENSE](LICENSE).

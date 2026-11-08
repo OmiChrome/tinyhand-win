@@ -1,4 +1,4 @@
-[submodule "upstream"]
-	path = upstream
+[submodule "tinyhand"]
+	path = tinyhand
 	url = https://github.com/nilbuild/tinyhand.git
 	branch = main

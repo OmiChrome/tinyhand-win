@@ -34,7 +34,7 @@
   <ItemGroup>
     <Content Include="..\..\assets\hand_*.png" Link="Assets\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\assets\sounds\tap_*.wav" Link="Assets\sounds\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="..\..\assets\menubar_*.png" Link="Assets\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\assets\tray_*.png" Link="Assets\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <Resource Include="..\..\assets\AppIcon.png" Link="Assets\AppIcon.png" />
   </ItemGroup>
 

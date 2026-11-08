@@ -169,7 +169,7 @@ internal sealed class TrayIcon : IDisposable
     /// <summary>Recolour the template glyph (black on transparent) for the taskbar theme.</summary>
     private static IntPtr MakeIcon(bool active)
     {
-        var path = Paths.Asset(active ? "menubar_on@3x.png" : "menubar_off@3x.png");
+        var path = Paths.Asset(active ? "tray_on@3x.png" : "tray_off@3x.png");
         if (path == null)
         {
             return IntPtr.Zero;

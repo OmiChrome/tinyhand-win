@@ -1,17 +1,28 @@
 name: Release
 
-# Push a tag like v1.0.0 to build the installer and publish it as a GitHub release.
-# Installed copies of TinyHand update themselves from these releases (Velopack).
+# Automatic: when VERSION changes on main (or this workflow changes), build the installer and
+# publish it as release v<VERSION>, unless that release already exists. Installed copies of
+# TinyHand update themselves from these releases (Velopack).
 on:
   push:
-    tags: ['v*']
+    branches: [main]
+    paths:
+      - VERSION
+      - .github/workflows/release.yml
+  workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -19,30 +30,40 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      - name: Version from tag
+      - name: Read version
+        id: version
         shell: pwsh
         run: |
-          $v = '${{ github.ref_name }}'.TrimStart('v')
-          "VERSION=$v" | Out-File -FilePath $env:GITHUB_ENV -Append
+          $v = (Get-Content VERSION -Raw).Trim()
+          gh release view "v$v" --repo ${{ github.repository }} *> $null
+          $exists = $LASTEXITCODE -eq 0
+          "version=$v" >> $env:GITHUB_OUTPUT
+          "exists=$($exists.ToString().ToLower())" >> $env:GITHUB_OUTPUT
+          if ($exists) { Write-Host "v$v is already released; nothing to do." } else { Write-Host "Releasing v$v" }
+          exit 0
 
       - name: Fetch previous release (for delta updates)
+        if: steps.version.outputs.exists == 'false'
         shell: pwsh
+        continue-on-error: true
         run: |
           dotnet tool restore
-          dotnet vpk download github --repoUrl https://github.com/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }} --outputDir Releases
-        continue-on-error: true
+          dotnet vpk download github --repoUrl https://github.com/${{ github.repository }} --token $env:GH_TOKEN --outputDir Releases
 
       - name: Build and pack
+        if: steps.version.outputs.exists == 'false'
         shell: pwsh
-        run: ./scripts/pack.ps1 -Version $env:VERSION
+        run: ./scripts/pack.ps1 -Version ${{ steps.version.outputs.version }}
 
       - name: Publish release
+        if: steps.version.outputs.exists == 'false'
         shell: pwsh
         run: >
           dotnet vpk upload github
           --repoUrl https://github.com/${{ github.repository }}
-          --token ${{ secrets.GITHUB_TOKEN }}
+          --token $env:GH_TOKEN
           --outputDir Releases
-          --tag ${{ github.ref_name }}
-          --releaseName "TinyHand ${{ env.VERSION }}"
+          --tag v${{ steps.version.outputs.version }}
+          --targetCommitish ${{ github.sha }}
+          --releaseName "TinyHand ${{ steps.version.outputs.version }}"
           --publish

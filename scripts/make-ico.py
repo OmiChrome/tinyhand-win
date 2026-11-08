@@ -1,4 +1,4 @@
-"""Build assets/AppIcon.ico from the original macOS app icon in the upstream submodule.
+"""Build assets/AppIcon.ico (and AppIcon.png) from the original app icon in the tinyhand submodule.
 
 Usage: python -I scripts/make-ico.py
 """
@@ -7,7 +7,7 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
-SOURCE = ROOT / "upstream" / "assets" / "AppIcon.icns"
+SOURCE = ROOT / "tinyhand" / "assets" / "AppIcon.icns"
 OUT = ROOT / "assets" / "AppIcon.ico"
 SIZES = [16, 20, 24, 32, 40, 48, 64, 96, 128, 256]
 

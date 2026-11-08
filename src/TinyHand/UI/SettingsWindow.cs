@@ -1084,8 +1084,8 @@ internal sealed class SettingsWindow : Window
 
         return Column(24, header,
             Ui.Card(null,
-                LinkRow("Source code", "github.com/OmiChrome/tinyhand-windows", Updater.RepoUrl),
-                LinkRow("Original macOS app", "tinyhand.app", "https://tinyhand.app"),
+                LinkRow("Source code", "github.com/OmiChrome/tinyhand-win", Updater.RepoUrl),
+                LinkRow("Original app", "tinyhand.app", "https://tinyhand.app"),
                 LinkRow("Original source", "github.com/nilbuild/tinyhand", "https://github.com/nilbuild/tinyhand"),
                 LinkRow("License", "MIT", Updater.RepoUrl + "/blob/main/LICENSE")),
             footer);

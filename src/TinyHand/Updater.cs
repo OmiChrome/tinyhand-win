@@ -8,7 +8,7 @@ namespace TinyHand;
 /// <summary>Self-updates from GitHub Releases with Velopack (the Windows stand-in for Sparkle).</summary>
 internal static class Updater
 {
-    public const string RepoUrl = "https://github.com/OmiChrome/tinyhand-windows";
+    public const string RepoUrl = "https://github.com/OmiChrome/tinyhand-win";
     private static readonly TimeSpan CheckEvery = TimeSpan.FromHours(6);
 
     private static UpdateManager? manager;
