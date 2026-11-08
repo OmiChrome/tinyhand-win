@@ -38,9 +38,10 @@ internal sealed class AppController : IDisposable
         UpdateIcon();
 
         // A second copy was launched: show settings instead.
-        messages.On(ShowSettingsMessage, (_, _) =>
+        messages.On(ShowSettingsMessage, (wParam, _) =>
         {
-            OpenSettings();
+            int page = wParam.ToInt32();
+            OpenSettings(page > 0 ? (UI.SettingsSection)(page - 1) : null);
             return IntPtr.Zero;
         });
 
@@ -88,11 +89,13 @@ internal sealed class AppController : IDisposable
             : "TinyHand — click to turn on, right-click for the menu");
     }
 
-    public void OpenSettings()
+    public void OpenSettings() => OpenSettings(null);
+
+    public void OpenSettings(UI.SettingsSection? page)
     {
         overlay.Exit();
         settings ??= CreateSettings();
-        settings.ShowAndActivate();
+        settings.ShowAndActivate(page);
     }
 
     private UI.SettingsWindow CreateSettings()

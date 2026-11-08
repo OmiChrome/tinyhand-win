@@ -15,7 +15,7 @@ internal static class Icons
     public const string Close = "";
     public const string Add = "";
     public const string Settings = "";
-    public const string Hand = "";
+    public const string Hand = ""; // TouchPointer: a pointing hand
     public const string Sparkle = "";
     public const string Pen = "";
     public const string Info = "";

@@ -31,7 +31,10 @@ internal static class Program
             var other = Win32.FindWindowEx(IntPtr.Zero, IntPtr.Zero, MessageWindow.ClassName, null);
             if (other != IntPtr.Zero)
             {
-                Win32.PostMessage(other, AppController.ShowSettingsMessage, IntPtr.Zero, IntPtr.Zero);
+                // We were just launched by the user, so we may take focus: pass that on.
+                Win32.GetWindowThreadProcessId(other, out uint pid);
+                Win32.AllowSetForegroundWindow(pid);
+                Win32.PostMessage(other, AppController.ShowSettingsMessage, new IntPtr(SettingsPageArg(args)), IntPtr.Zero);
             }
             return 0;
         }
@@ -60,6 +63,17 @@ internal static class Program
         app.SessionEnding += (_, _) => CursorHider.Restore();
         app.Exit += (_, _) => controller?.Dispose();
         app.Run();
+        return 0;
+    }
+
+    /// <summary>"--settings pointers" opens that page: 0 = default, otherwise section index + 1.</summary>
+    public static int SettingsPageArg(string[] args)
+    {
+        int i = Array.IndexOf(args, "--settings");
+        if (i >= 0 && i + 1 < args.Length && Enum.TryParse<UI.SettingsSection>(args[i + 1], true, out var section))
+        {
+            return (int)section + 1;
+        }
         return 0;
     }
 }

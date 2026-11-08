@@ -403,6 +403,9 @@ internal static class Win32
     public static extern IntPtr GetForegroundWindow();
 
     [DllImport("user32.dll")]
+    public static extern bool AllowSetForegroundWindow(uint processId);
+
+    [DllImport("user32.dll")]
     public static extern bool EnumWindows(EnumWindowsProc proc, IntPtr lParam);
 
     [DllImport("user32.dll")]

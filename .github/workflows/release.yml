@@ -1,0 +1,48 @@
+name: Release
+
+# Push a tag like v1.0.0 to build the installer and publish it as a GitHub release.
+# Installed copies of TinyHand update themselves from these releases (Velopack).
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Version from tag
+        shell: pwsh
+        run: |
+          $v = '${{ github.ref_name }}'.TrimStart('v')
+          "VERSION=$v" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Fetch previous release (for delta updates)
+        shell: pwsh
+        run: |
+          dotnet tool restore
+          dotnet vpk download github --repoUrl https://github.com/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }} --outputDir Releases
+        continue-on-error: true
+
+      - name: Build and pack
+        shell: pwsh
+        run: ./scripts/pack.ps1 -Version $env:VERSION
+
+      - name: Publish release
+        shell: pwsh
+        run: >
+          dotnet vpk upload github
+          --repoUrl https://github.com/${{ github.repository }}
+          --token ${{ secrets.GITHUB_TOKEN }}
+          --outputDir Releases
+          --tag ${{ github.ref_name }}
+          --releaseName "TinyHand ${{ env.VERSION }}"
+          --publish

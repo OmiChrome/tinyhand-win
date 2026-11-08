@@ -1071,8 +1071,16 @@ internal sealed class SettingsWindow : Window
         info.Children.Add(Ui.Text("A tiny hand for your PC. Free and open source.", 13, Ui.TextSecondary));
         header.Children.Add(info);
 
+        var footer = new DockPanel();
         var reset = Ui.LinkButton("Reset all settings…", ResetAll, 12);
-        reset.HorizontalAlignment = HorizontalAlignment.Right;
+        DockPanel.SetDock(reset, Dock.Right);
+        footer.Children.Add(reset);
+        var folders = new StackPanel { Orientation = Orientation.Horizontal };
+        folders.Children.Add(Ui.LinkButton("Open settings folder", () => Ui.OpenUrl(Paths.RoamingData), 12));
+        var logs = Ui.LinkButton("Open log", () => Ui.OpenUrl(Log.FilePath), 12);
+        logs.Margin = new Thickness(16, 0, 0, 0);
+        folders.Children.Add(logs);
+        footer.Children.Add(folders);
 
         return Column(24, header,
             Ui.Card(null,
@@ -1080,8 +1088,7 @@ internal sealed class SettingsWindow : Window
                 LinkRow("Original macOS app", "tinyhand.app", "https://tinyhand.app"),
                 LinkRow("Original source", "github.com/nilbuild/tinyhand", "https://github.com/nilbuild/tinyhand"),
                 LinkRow("License", "MIT", Updater.RepoUrl + "/blob/main/LICENSE")),
-            Ui.Text($"Settings and logs: {Paths.RoamingData}", 11, Ui.TextTertiary),
-            reset);
+            footer);
     }
 
     private static UIElement LinkRow(string title, string detail, string url)
