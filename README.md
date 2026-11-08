@@ -1,3 +1,7 @@
+> [!WARNING]
+> This is a Windows rewrite of the original [TinyHand](https://github.com/nilbuild/tinyhand).
+> All rights belong to [github.com/nilbuild](https://github.com/nilbuild).
+
 <img src="./.github/logo.png" width="80" />
 
 # TinyHand
@@ -12,12 +16,7 @@ A tiny hand on a stick that points at things on your Windows screen.
 
 [![Download for Windows](https://img.shields.io/badge/Download_for_Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/OmiChrome/tinyhand-win/releases/latest/download/TinyHand-win-Setup.exe)
 
-Windows 10 or later, x64. Made by [Omi](https://github.com/OmiChrome), based on [TinyHand](https://github.com/nilbuild/tinyhand).
-
-## Install
-
-Run `TinyHand-win-Setup.exe`. If SmartScreen warns you, choose **More info → Run anyway**.
-TinyHand opens at sign-in and updates itself.
+Windows 10 or later, x64.
 
 ## Use
 
