@@ -14,6 +14,7 @@ Windows port of [nilbuild/tinyhand](https://github.com/nilbuild/tinyhand).
 <img src="./.github/banner.jpg" alt="TinyHand: a tiny hand for Windows" />
 
 [![Download for Windows](https://img.shields.io/badge/Download_for_Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/OmiChrome/tinyhand-win/releases/latest/download/TinyHand-win-Setup.exe)
+[![Visit website](https://img.shields.io/badge/Visit_website-ffffff?style=for-the-badge&logo=googlechrome&logoColor=black)](https://omichrome.github.io/tinyhand-win/)
 
 Works on Windows 10 and 11 (64-bit).
 

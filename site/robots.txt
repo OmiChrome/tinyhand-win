@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://omichrome.github.io/tinyhand-win/sitemap.xml

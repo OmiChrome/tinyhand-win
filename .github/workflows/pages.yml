@@ -1,0 +1,51 @@
+name: Website
+
+# Publish site/ to GitHub Pages when it changes. Pages is replaced on every deploy, so the
+# current update feed (/updates) is copied from the live site and published again with it.
+# New releases deploy both together from release.yml.
+on:
+  push:
+    branches: [main]
+    paths:
+      - site/**
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build site with the live update feed
+        run: |
+          set -euo pipefail
+          mkdir -p _site/updates
+          cp -r site/. _site/
+          feed=https://omichrome.github.io/tinyhand-win/updates
+          if curl -fsSL "$feed/releases.win.json" -o _site/updates/releases.win.json; then
+            curl -fsSL "$feed/RELEASES" -o _site/updates/RELEASES
+            for f in $(jq -r '.Assets[].FileName' _site/updates/releases.win.json); do
+              curl -fsSL "$feed/$f" -o "_site/updates/$f"
+            done
+          else
+            echo "No live update feed yet; publishing the website only."
+          fi
+          ls -la _site _site/updates
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4

@@ -63,20 +63,23 @@ jobs:
         if: steps.version.outputs.exists == 'false'
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force site/updates | Out-Null
-          Copy-Item Releases/releases.win.json, Releases/RELEASES, Releases/*-full.nupkg site/updates/
-          '<!doctype html><meta http-equiv="refresh" content="0; url=https://github.com/OmiChrome/tinyhand-win">' | Set-Content site/index.html
+          New-Item -ItemType Directory -Force feed | Out-Null
+          Copy-Item Releases/releases.win.json, Releases/RELEASES, Releases/*-full.nupkg feed/
 
       - uses: actions/upload-artifact@v4
         if: steps.version.outputs.exists == 'false'
         with:
           name: feed
-          path: site
+          path: feed
 
-  feed:
+  # Pages = the website (site/) + the new update feed under /updates.
+  pages:
     needs: build
     if: needs.build.outputs.released == 'true'
     runs-on: ubuntu-latest
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     permissions:
       pages: write
       id-token: write
@@ -84,14 +87,19 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           name: feed
-          path: site
+          path: _site/updates
+
+      - name: Add the website
+        run: cp -r site/. _site/
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: site
+          path: _site
 
       - id: deploy
         uses: actions/deploy-pages@v4
