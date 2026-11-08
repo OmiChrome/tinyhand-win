@@ -62,7 +62,12 @@ internal static class Program
             controller.Start();
         };
         app.SessionEnding += (_, _) => CursorHider.Restore();
-        app.Exit += (_, _) => controller?.Dispose();
+        app.Exit += (_, _) =>
+        {
+            controller?.Dispose();
+            // A downloaded update the user said "Later" to installs quietly now.
+            Updater.ApplyOnExit();
+        };
         app.Run();
         return 0;
     }

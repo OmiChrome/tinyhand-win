@@ -45,6 +45,16 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      # With the previous release's package next to it, Velopack also makes a small delta update
+      # (only what changed), so installed copies download kilobytes instead of the whole app.
+      - name: Fetch previous release for delta updates
+        if: steps.version.outputs.exists == 'false'
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          dotnet tool restore
+          dotnet vpk download http --url https://omichrome.github.io/tinyhand-win/updates -o Releases
+
       - name: Build and pack
         if: steps.version.outputs.exists == 'false'
         shell: pwsh
@@ -63,8 +73,13 @@ jobs:
         if: steps.version.outputs.exists == 'false'
         shell: pwsh
         run: |
+          $v = '${{ steps.version.outputs.version }}'
           New-Item -ItemType Directory -Force feed | Out-Null
-          Copy-Item Releases/releases.win.json, Releases/RELEASES, Releases/*-full.nupkg feed/
+          Copy-Item Releases/releases.win.json, Releases/RELEASES feed/
+          # Only this version's packages; the previous full package was just the delta base.
+          Copy-Item "Releases/TinyHand-$v-full.nupkg" feed/
+          Copy-Item "Releases/TinyHand-$v-delta.nupkg" feed/ -ErrorAction SilentlyContinue
+          Get-ChildItem feed | Format-Table Name, Length
 
       - uses: actions/upload-artifact@v4
         if: steps.version.outputs.exists == 'false'
@@ -93,6 +108,14 @@ jobs:
         with:
           name: feed
           path: _site/updates
+
+      - name: Keep older delta updates (so copies a few versions behind can step through them)
+        run: |
+          feed=https://omichrome.github.io/tinyhand-win/updates
+          for f in $(jq -r '.Assets[] | select(.Type == "Delta") | .FileName' _site/updates/releases.win.json); do
+            [ -f "_site/updates/$f" ] || curl -fsSL "$feed/$f" -o "_site/updates/$f" || echo "missing $f"
+          done
+          ls -la _site/updates
 
       - name: Add the website
         run: cp -r site/. _site/

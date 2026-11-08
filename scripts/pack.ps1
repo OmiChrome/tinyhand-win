@@ -8,7 +8,9 @@
 #>
 param(
     [string]$Version,
-    [string]$Runtime = 'win-x64'
+    [string]$Runtime = 'win-x64',
+    # Put the previous release's full package here first and Velopack also builds a small delta update.
+    [string]$OutputDir
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
@@ -16,7 +18,7 @@ Set-Location $root
 
 if (-not $Version) { $Version = (Get-Content VERSION -Raw).Trim() }
 $publish = Join-Path $root "publish/$Runtime"
-$releases = Join-Path $root 'Releases'
+$releases = if ($OutputDir) { $OutputDir } else { Join-Path $root 'Releases' }
 
 Write-Host "Building TinyHand $Version ($Runtime)..."
 if (Test-Path $publish) { Remove-Item $publish -Recurse -Force }

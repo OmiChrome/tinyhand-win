@@ -35,8 +35,9 @@ jobs:
           feed=https://omichrome.github.io/tinyhand-win/updates
           if curl -fsSL "$feed/releases.win.json" -o _site/updates/releases.win.json; then
             curl -fsSL "$feed/RELEASES" -o _site/updates/RELEASES
+            # Only the newest full package is hosted (older ones are listed but not needed).
             for f in $(jq -r '.Assets[].FileName' _site/updates/releases.win.json); do
-              curl -fsSL "$feed/$f" -o "_site/updates/$f"
+              curl -fsSL "$feed/$f" -o "_site/updates/$f" || { rm -f "_site/updates/$f"; echo "not hosted: $f"; }
             done
           else
             echo "No live update feed yet; publishing the website only."
