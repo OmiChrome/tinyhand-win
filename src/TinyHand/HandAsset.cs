@@ -12,8 +12,12 @@ internal sealed class HandAsset
 {
     public required int Width { get; init; }
     public required int Height { get; init; }
-    /// <summary>Premultiplied BGRA, top-down rows.</summary>
-    public required byte[] Pixels { get; init; }
+    /// <summary>Premultiplied BGRA, top-down rows. The overlay drops it once the GPU has a copy.</summary>
+    public byte[]? Pixels { get; set; }
+    public string? FilePath { get; init; }
+
+    /// <summary>Thumbnails only need ~128 px, so decode hand images at a quarter of their 1536 px height.</summary>
+    private const int ThumbnailDecodeHeight = 384;
 
     public double Aspect { get; init; }
     public double HandTop { get; init; }
@@ -26,52 +30,34 @@ internal sealed class HandAsset
     public double HandMaxX { get; init; }
 
     private static readonly object Gate = new();
-    private static readonly Dictionary<string, HandAsset> Cache = new();
-    private static readonly List<string> Recent = new();
-    private const int CacheLimit = 2;
     private static readonly Dictionary<string, ImageSource> Thumbnails = new();
 
-    public static HandAsset? Load(string name)
+    /// <summary>Full-resolution hand with pixels, for the overlay. Not cached: the GPU keeps the copy.</summary>
+    public static HandAsset? Load(string name) => Decode(name, null);
+
+    /// <summary>Reload pixels dropped after upload (e.g. after the graphics device was reset).</summary>
+    public byte[]? ReloadPixels()
     {
-        lock (Gate)
-        {
-            if (Cache.TryGetValue(name, out var hit))
-            {
-                Touch(name);
-                return hit;
-            }
-        }
-        var asset = Decode(name);
-        if (asset == null)
+        if (FilePath == null)
         {
             return null;
         }
-        lock (Gate)
+        try
         {
-            Cache[name] = asset;
-            Touch(name);
+            return ReadPbgra(FilePath, null).Pixels;
         }
-        return asset;
+        catch (Exception e)
+        {
+            Log.Write($"reload {FilePath} failed: {e.Message}");
+            return null;
+        }
     }
 
     public static void Forget(string name)
     {
         lock (Gate)
         {
-            Cache.Remove(name);
-            Recent.Remove(name);
             Thumbnails.Remove(name);
-        }
-    }
-
-    private static void Touch(string name)
-    {
-        Recent.Remove(name);
-        Recent.Add(name);
-        while (Recent.Count > CacheLimit)
-        {
-            Cache.Remove(Recent[0]);
-            Recent.RemoveAt(0);
         }
     }
 
@@ -89,13 +75,7 @@ internal sealed class HandAsset
         {
             return hit;
         }
-        HandAsset? asset;
-        lock (Gate)
-        {
-            asset = Cache.GetValueOrDefault(name);
-        }
-        asset ??= Decode(name);
-        var thumb = asset?.MakeThumbnail();
+        var thumb = Decode(name, ThumbnailDecodeHeight)?.MakeThumbnail();
         if (thumb != null)
         {
             lock (Gate)
@@ -122,7 +102,7 @@ internal sealed class HandAsset
             {
                 try
                 {
-                    var thumb = Decode(name)?.MakeThumbnail();
+                    var thumb = Decode(name, ThumbnailDecodeHeight)?.MakeThumbnail();
                     if (thumb != null)
                     {
                         lock (Gate)
@@ -136,6 +116,9 @@ internal sealed class HandAsset
                     Log.Write($"thumbnail {name} failed: {e.Message}");
                 }
             }
+            // Decoding left large temporary buffers behind; give the memory back.
+            System.Runtime.GCSettings.LargeObjectHeapCompactionMode = System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
+            GC.Collect(2, GCCollectionMode.Aggressive, blocking: true, compacting: true);
             if (done != null)
             {
                 dispatcher.BeginInvoke(done);
@@ -154,7 +137,7 @@ internal sealed class HandAsset
         double cy = (HandTop + Wrist) / 2 * h;
         var rect = Rect.Intersect(new Rect(cx - side / 2, cy - side / 2, side, side), new Rect(0, 0, w, h));
 
-        var full = BitmapSource.Create(Width, Height, 96, 96, PixelFormats.Pbgra32, null, Pixels, Width * 4);
+        var full = BitmapSource.Create(Width, Height, 96, 96, PixelFormats.Pbgra32, null, Pixels!, Width * 4);
         var cropped = new CroppedBitmap(full, new Int32Rect((int)rect.X, (int)rect.Y, (int)rect.Width, (int)rect.Height));
         const double px = 128;
         var scaled = new TransformedBitmap(cropped, new ScaleTransform(px / cropped.PixelWidth, px / cropped.PixelHeight));
@@ -174,7 +157,7 @@ internal sealed class HandAsset
         return Paths.Asset($"{name}.png");
     }
 
-    private static HandAsset? Decode(string name)
+    private static HandAsset? Decode(string name, int? decodeHeight)
     {
         var path = FindFile(name);
         if (path == null)
@@ -184,8 +167,8 @@ internal sealed class HandAsset
         }
         try
         {
-            var (w, h, pixels) = ReadPbgra(path);
-            return Measure(w, h, pixels);
+            var (w, h, pixels) = ReadPbgra(path, decodeHeight);
+            return Measure(w, h, pixels, path);
         }
         catch (Exception e)
         {
@@ -194,10 +177,26 @@ internal sealed class HandAsset
         }
     }
 
-    public static (int Width, int Height, byte[] Pixels) ReadPbgra(string path)
+    public static (int Width, int Height, byte[] Pixels) ReadPbgra(string path, int? decodeHeight)
     {
         using var stream = File.OpenRead(path);
-        var frame = BitmapDecoder.Create(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad).Frames[0];
+        BitmapSource frame;
+        if (decodeHeight is { } dh)
+        {
+            // WIC scales while decoding, so the full-size image never exists in memory.
+            var image = new BitmapImage();
+            image.BeginInit();
+            image.StreamSource = stream;
+            image.DecodePixelHeight = dh;
+            image.CacheOption = BitmapCacheOption.OnLoad;
+            image.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
+            image.EndInit();
+            frame = image;
+        }
+        else
+        {
+            frame = BitmapDecoder.Create(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad).Frames[0];
+        }
         var converted = new FormatConvertedBitmap(frame, PixelFormats.Pbgra32, null, 0);
         int w = converted.PixelWidth;
         int h = converted.PixelHeight;
@@ -206,7 +205,7 @@ internal sealed class HandAsset
         return (w, h, pixels);
     }
 
-    private static HandAsset? Measure(int w, int h, byte[] pixels)
+    private static HandAsset? Measure(int w, int h, byte[] pixels, string? path)
     {
         bool Solid(int x, int y) => pixels[(y * w + x) * 4 + 3] > 128;
 
@@ -318,6 +317,7 @@ internal sealed class HandAsset
             Width = w,
             Height = h,
             Pixels = pixels,
+            FilePath = path,
             Aspect = w / fh,
             HandTop = Math.Max(0, top - 0.004 * fh) / fh,
             Tip = top / fh,

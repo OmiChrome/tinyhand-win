@@ -120,14 +120,28 @@ internal sealed class OverlayRenderer : IDisposable
     public void SetStyle(PointerStyle value) => Post(() =>
     {
         style = value;
-        asset = value.AssetName is { } name ? HandAsset.Load(name) : null;
-        if (!value.IsLaser && asset == null)
-        {
-            style = PointerStyle.Laser;
-        }
+        asset = null;
+        assetLoaded = false;
         UpdateInkColor();
         needsFrame = true;
     });
+
+    private bool assetLoaded;
+
+    /// <summary>Load the hand image the first time it's needed (keeps startup light).</summary>
+    private void EnsureAsset()
+    {
+        if (assetLoaded)
+        {
+            return;
+        }
+        assetLoaded = true;
+        asset = style.AssetName is { } name ? HandAsset.Load(name) : null;
+        if (!style.IsLaser && asset == null)
+        {
+            Log.Write($"hand {style.Id} unavailable; using the laser dot");
+        }
+    }
 
     public void PreferencesChanged() => Post(() =>
     {
@@ -182,11 +196,10 @@ internal sealed class OverlayRenderer : IDisposable
         try
         {
             CreateWindow();
-            CreateDevice();
         }
         catch (Exception e)
         {
-            Log.Write($"overlay failed to start: {e}");
+            Log.Write($"overlay window failed: {e}");
         }
         started.Set();
 
@@ -214,10 +227,16 @@ internal sealed class OverlayRenderer : IDisposable
             bool changed;
             try
             {
+                long t0 = Stopwatch.GetTimestamp();
                 changed = Tick();
+                long t1 = Stopwatch.GetTimestamp();
                 if (changed)
                 {
                     Render();
+                }
+                if (Perf)
+                {
+                    CountFrame(changed, t0, t1, Stopwatch.GetTimestamp());
                 }
             }
             catch (Exception e) when (e is SharpGen.Runtime.SharpGenException or COMException)
@@ -235,6 +254,35 @@ internal sealed class OverlayRenderer : IDisposable
         }
         DisposeDevice();
         Win32.DestroyWindow(hwnd);
+    }
+
+    // TH_PERF=1 logs per-second frame stats.
+    private static readonly bool Perf = Environment.GetEnvironmentVariable("TH_PERF") == "1";
+    private int perfTicks, perfFrames;
+    private double perfTickMs, perfRenderMs, perfDrawMs, perfSince, perfCpu;
+
+    private void CountFrame(bool rendered, long t0, long t1, long t2)
+    {
+        perfTicks++;
+        perfTickMs += (t1 - t0) * 1000.0 / Stopwatch.Frequency;
+        if (rendered)
+        {
+            perfFrames++;
+            perfRenderMs += (t2 - t1) * 1000.0 / Stopwatch.Frequency;
+            perfDrawMs += lastDrawMs;
+        }
+        double now = clock.Elapsed.TotalSeconds;
+        if (now - perfSince >= 1)
+        {
+            var cpu = Process.GetCurrentProcess().TotalProcessorTime.TotalMilliseconds;
+            Log.Write($"perf: ticks={perfTicks} frames={perfFrames} tick={perfTickMs / Math.Max(1, perfTicks):F2}ms " +
+                      $"draw={perfDrawMs / Math.Max(1, perfFrames):F2}ms draw+present={perfRenderMs / Math.Max(1, perfFrames):F2}ms " +
+                      $"processCpu={cpu - perfCpu:F0}ms/s settling={settling} press={pressAmount:F3} ink={ink.Count}");
+            perfTicks = perfFrames = 0;
+            perfTickMs = perfRenderMs = perfDrawMs = 0;
+            perfSince = now;
+            perfCpu = cpu;
+        }
     }
 
     private void Pump()
@@ -328,6 +376,8 @@ internal sealed class OverlayRenderer : IDisposable
         ink.ReleaseDeviceResources();
         handBitmap?.Dispose();
         handBitmap = null;
+        displayBitmap?.Dispose();
+        displayBitmap = null;
         handBitmapName = null;
         shadow?.Dispose();
         roundStroke?.Dispose();
@@ -376,6 +426,21 @@ internal sealed class OverlayRenderer : IDisposable
         active = value;
         if (value)
         {
+            if (ctx == null)
+            {
+                try
+                {
+                    // Created on first use so an idle TinyHand holds no GPU resources.
+                    CreateDevice();
+                }
+                catch (Exception e)
+                {
+                    Log.Write($"graphics device failed: {e}");
+                    active = false;
+                    return;
+                }
+            }
+            EnsureAsset();
             Win32.timeBeginPeriod(1);
             gripX = null;
             lastPose = Array.Empty<double>();
@@ -506,6 +571,7 @@ internal sealed class OverlayRenderer : IDisposable
             Win32.SetWindowPos(hwnd, Win32.HWND_TOPMOST, 0, 0, 0, 0, Win32.SWP_NOMOVE | Win32.SWP_NOSIZE | Win32.SWP_NOACTIVATE);
         }
 
+        EnsureAsset();
         var local = Local(cursor);
         bool frame = needsFrame;
         needsFrame = false;
@@ -639,21 +705,23 @@ internal sealed class OverlayRenderer : IDisposable
             return;
         }
         double now = clock.Elapsed.TotalSeconds;
+        long drawStart = Stopwatch.GetTimestamp();
 
         // The hand goes into a command list first so the drop shadow can be made from it.
         ID2D1CommandList? pointer = null;
         if (!pointerHidden)
         {
+            var handImage = style.IsLaser || asset == null ? null : PrepareHand(asset);
             pointer = ctx.CreateCommandList();
             ctx.Target = pointer;
             ctx.BeginDraw();
-            if (style.IsLaser || asset == null)
+            if (handImage == null)
             {
                 DrawLaserDot();
             }
             else
             {
-                DrawHand(asset);
+                DrawHand(asset!, handImage);
             }
             ctx.EndDraw();
             pointer.Close();
@@ -689,8 +757,12 @@ internal sealed class OverlayRenderer : IDisposable
         }
         ctx.EndDraw();
         pointer?.Dispose();
+        long drawn = Stopwatch.GetTimestamp();
         swapChain.Present(1, PresentFlags.None);
+        lastDrawMs = (drawn - drawStart) * 1000.0 / Stopwatch.Frequency;
     }
+
+    private double lastDrawMs;
 
     private void DrawLaserDot()
     {
@@ -703,15 +775,61 @@ internal sealed class OverlayRenderer : IDisposable
         ctx.FillEllipse(new Ellipse(c, (float)core, (float)core), brush);
     }
 
-    private void DrawHand(HandAsset a)
+    private ID2D1Bitmap1? displayBitmap;
+    private int displayHeight;
+
+    /// <summary>
+    /// Like macOS ArmView.updateDisplayImage: keep a copy scaled (high quality, once) to about the
+    /// size it's drawn at, in 64 px steps, so each frame only does a cheap linear resample.
+    /// </summary>
+    private ID2D1Bitmap1 DisplayBitmap(HandAsset a)
+    {
+        double restPts = handLenFrac * monitor.Bounds.Height / (a.Wrist - a.HandTop);
+        const int step = 64;
+        int needed = ((int)Math.Ceiling(restPts) + step - 1) / step * step;
+        int height = needed >= a.Height * 9 / 10 ? a.Height : Math.Max(step, needed);
+        if (height == a.Height)
+        {
+            return handBitmap!;
+        }
+        if (displayBitmap != null && displayHeight == height)
+        {
+            return displayBitmap;
+        }
+        displayBitmap?.Dispose();
+        int width = Math.Max(1, (int)Math.Round((double)a.Width * height / a.Height));
+        displayBitmap = ctx!.CreateBitmap(new SizeI(width, height), IntPtr.Zero, 0,
+            new BitmapProperties1(new PixelFormat(Format.B8G8R8A8_UNorm, Vortice.DCommon.AlphaMode.Premultiplied), 96, 96,
+                BitmapOptions.Target));
+        var previous = ctx.Target;
+        ctx.Target = displayBitmap;
+        ctx.BeginDraw();
+        ctx.Clear(new Color4(0, 0, 0, 0));
+        ctx.Transform = Matrix3x2.Identity;
+        ctx.DrawBitmap(handBitmap!, new RawRectF(0, 0, width, height), 1, InterpolationMode.HighQualityCubic, null, null);
+        ctx.EndDraw();
+        ctx.Target = previous;
+        displayHeight = height;
+        return displayBitmap;
+    }
+
+    /// <summary>Upload the hand (when the style changed) and return the bitmap to draw this frame.</summary>
+    private ID2D1Bitmap1 PrepareHand(HandAsset a)
     {
         var name = style.AssetName!;
         if (handBitmap == null || handBitmapName != name)
         {
             handBitmap?.Dispose();
+            displayBitmap?.Dispose();
+            displayBitmap = null;
             handBitmap = UploadBitmap(a);
             handBitmapName = name;
         }
+        return DisplayBitmap(a);
+    }
+
+    private void DrawHand(HandAsset a, ID2D1Bitmap1 bitmap)
+    {
 
         double h = monitor.Bounds.Height;
         double width = poseWidthPts;
@@ -723,24 +841,32 @@ internal sealed class OverlayRenderer : IDisposable
                          * Matrix3x2.CreateRotation((float)-poseRotation)
                          * Matrix3x2.CreateTranslation(gripDown);
 
-        float iw = a.Width;
-        float ih = a.Height;
+        var size = bitmap.PixelSize;
+        float iw = size.Width;
+        float ih = size.Height;
         var handDest = new RawRectF(0, 0, (float)width, (float)poseHandPts);
         var handSrc = new RawRectF(0, (float)(a.HandTop * ih), iw, (float)(a.Wrist * ih));
         var rodDest = new RawRectF(0, (float)poseHandPts, (float)width, (float)total);
         var rodSrc = new RawRectF(0, (float)(a.Wrist * ih), iw, (float)(a.RodEnd * ih));
-        ctx.DrawBitmap(handBitmap, rodDest, 1, InterpolationMode.HighQualityCubic, rodSrc, null);
-        ctx.DrawBitmap(handBitmap, handDest, 1, InterpolationMode.HighQualityCubic, handSrc, null);
+        // Already near display size, so linear sampling looks the same as cubic and costs far less.
+        var mode = bitmap == handBitmap ? InterpolationMode.HighQualityCubic : InterpolationMode.Linear;
+        ctx.DrawBitmap(bitmap, rodDest, 1, mode, rodSrc, null);
+        ctx.DrawBitmap(bitmap, handDest, 1, mode, handSrc, null);
         ctx.Transform = Matrix3x2.Identity;
     }
 
     private unsafe ID2D1Bitmap1 UploadBitmap(HandAsset a)
     {
-        fixed (byte* p = a.Pixels)
+        var pixels = a.Pixels ?? a.ReloadPixels() ?? new byte[a.Width * a.Height * 4];
+        ID2D1Bitmap1 bitmap;
+        fixed (byte* p = pixels)
         {
-            return ctx!.CreateBitmap(new SizeI(a.Width, a.Height), (IntPtr)p, (uint)(a.Width * 4),
+            bitmap = ctx!.CreateBitmap(new SizeI(a.Width, a.Height), (IntPtr)p, (uint)(a.Width * 4),
                 new BitmapProperties1(new PixelFormat(Format.B8G8R8A8_UNorm, Vortice.DCommon.AlphaMode.Premultiplied), 96, 96));
         }
+        // The GPU has its own copy now; keep only the measurements.
+        a.Pixels = null;
+        return bitmap;
     }
 
     public void Dispose()
