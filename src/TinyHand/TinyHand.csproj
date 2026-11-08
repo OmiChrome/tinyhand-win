@@ -14,8 +14,9 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>..\..\assets\AppIcon.ico</ApplicationIcon>
     <Product>TinyHand</Product>
-    <Company>TinyHand for Windows</Company>
-    <Copyright>© Kamran Ahmed and contributors. MIT License.</Copyright>
+    <Authors>Omi</Authors>
+    <Company>Omi</Company>
+    <Copyright>© 2026 Omi. MIT License.</Copyright>
     <Version>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\..\VERSION').Trim())</Version>
     <InvariantGlobalization>true</InvariantGlobalization>
     <TieredPGO>true</TieredPGO>
