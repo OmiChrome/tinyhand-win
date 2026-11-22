@@ -229,6 +229,27 @@
     // Touch and pen have no hover, so the hand waits where it was last left and jumps to the
     // finger when it lands. Only one finger draws at a time.
     let touchId = null;
+    // Two fingers scroll the page instead of drawing, since the stage blocks native scrolling
+    // while the hand is out.
+    const fingers = new Map();
+    let scrolling = false;
+    let scrollMid = 0;
+    let touchAt = 0;
+    function midY() {
+      let y = 0;
+      fingers.forEach(f => { y += f.y; });
+      return y / fingers.size;
+    }
+    function startScroll() {
+      scrolling = true;
+      if (current && performance.now() - touchAt < 300) {
+        strokes.splice(strokes.indexOf(current), 1);
+        current = null;
+      }
+      release();
+      touchId = null;
+      scrollMid = midY();
+    }
     let lastType = 'mouse';
     window.addEventListener('pointerdown', e => { lastType = e.pointerType || 'mouse'; }, true);
     function restPoint() {
@@ -239,6 +260,15 @@
       return (toolbar && toolbar.contains(e.target)) || Boolean(e.target.closest && e.target.closest(passSelector));
     }
     source.addEventListener('pointermove', e => {
+      if (e.pointerType !== 'mouse' && enabled && fingers.has(e.pointerId)) {
+        fingers.set(e.pointerId, { y: e.clientY });
+      }
+      if (e.pointerType !== 'mouse' && enabled && scrolling && fingers.size >= 2) {
+        const m = midY();
+        window.scrollBy(0, scrollMid - m);
+        scrollMid = m;
+        return;
+      }
       if (e.pointerType !== 'mouse' && enabled && e.pointerId === touchId) {
         lastReal = performance.now();
         const moves = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
@@ -273,12 +303,23 @@
       }
     });
     source.addEventListener('pointerdown', e => {
-      if (e.pointerType !== 'mouse' && enabled && !onToolbar(e)) {
-        if (touchId !== null) {
+      if (e.pointerType !== 'mouse' && enabled) {
+        fingers.set(e.pointerId, { y: e.clientY });
+        if (fingers.size >= 2) {
+          e.preventDefault();
+          startScroll();
+          dirty = true;
+          return;
+        }
+        if (onToolbar(e)) {
+          return;
+        }
+        e.preventDefault();
+        if (scrolling || touchId !== null) {
           return;
         }
         touchId = e.pointerId;
-        e.preventDefault();
+        touchAt = performance.now();
         ensureAudio();
         lastReal = performance.now();
         cursor = local(e);
@@ -300,6 +341,13 @@
       }
     });
     ['pointerup', 'pointercancel'].forEach(t => window.addEventListener(t, e => {
+      fingers.delete(e.pointerId);
+      if (!fingers.size) {
+        scrolling = false;
+      }
+      if (fingers.size === 1 && scrolling) {
+        scrollMid = midY();
+      }
       if (e.pointerId !== touchId) {
         return;
       }
@@ -334,6 +382,8 @@
       release();
       cursor = null;
       touchId = null;
+      fingers.clear();
+      scrolling = false;
       strokes.length = 0;
       liveEl.classList.remove('th-live');
       stage.classList.remove('th-touch');
