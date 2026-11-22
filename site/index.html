@@ -117,6 +117,8 @@ h1 { margin: 0; font-weight: 600; font-size: clamp(36px, 5.6vw, 56px); line-heig
 }
 .hint { display: none; position: absolute; z-index: 3; left: 50%; transform: translateX(-50%); top: 78px; width: max-content; max-width: calc(100% - 32px); padding: 6px 12px; border-radius: 999px; background: rgba(25, 8, 20, .62); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); font: 400 11.5px/1.4 var(--mono); color: #f6e6d6; text-align: center; pointer-events: none; transition: opacity .2s ease; }
 @media (hover: none), (pointer: coarse) { .hint { display: block; } }
+.picker .done { display: none; width: auto; height: 30px; margin-left: 3px; padding: 0 12px; border-radius: 9px; font: 500 12px var(--mono); color: var(--btn-fg); background: var(--btn); white-space: nowrap; }
+@media (hover: none), (pointer: coarse) { .stage.on .picker .done { display: block; } }
 .pop-grid button[aria-pressed="true"] { background: rgba(242, 234, 216, .14); }
 .pop-grid img { width: 32px; height: 32px; }
 
@@ -138,6 +140,9 @@ kbd { font: 500 12px var(--mono); color: var(--fg); padding: 3px 6px; border-rad
   .picker > [data-style="astro"], .picker > [data-style="skeleton"], .picker > [data-style="holo"] { display: none; }
   .picker .count { padding: 0 9px; }
   .picker .sep { margin: 0 4px 0 2px; }
+}
+@media (max-width: 400px) {
+  .stage.on .picker > [data-style="robot"], .stage.on .picker .sep { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .btn, .picker img, .laser, .picker .count { transition: none; } }
 </style>
@@ -207,7 +212,7 @@ kbd { font: 500 12px var(--mono); color: var(--fg); padding: 3px 6px; border-rad
       api.deactivate();
     }
     stage.classList.toggle('on', on);
-    hint.textContent = on ? 'Drag to draw · tap the hand again to hide it' : 'Tap a hand, then draw with your finger';
+    hint.textContent = on ? 'One finger draws · two fingers scroll' : 'Tap a hand, then draw with your finger';
   }
 
   const styles = api.hands.concat([{ id: 'laser', name: 'Laser dot' }]);
@@ -252,6 +257,17 @@ kbd { font: 500 12px var(--mono); color: var(--fg); padding: 3px 6px; border-rad
   const grid = pop.querySelector('.pop-grid');
   styles.forEach(hand => grid.appendChild(button(hand, () => setOpen(false))));
   picker.appendChild(pop);
+
+  const done = document.createElement('button');
+  done.type = 'button';
+  done.className = 'done';
+  done.textContent = 'Done';
+  done.setAttribute('aria-label', 'Put the hand away');
+  done.addEventListener('click', () => {
+    setOpen(false);
+    setLive(false);
+  });
+  picker.appendChild(done);
 
   function setOpen(open) {
     pop.hidden = !open;
