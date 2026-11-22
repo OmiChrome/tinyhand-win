@@ -46,6 +46,7 @@
   .th-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
   .th-live { cursor: none; user-select: none; -webkit-user-select: none; touch-action: pan-y; }
   .th-live * { cursor: none !important; }
+  .th-touch { touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
   .th-toolbar { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 4;
     display: flex; align-items: center; gap: 4px; padding: 6px 8px; border-radius: 16px;
     background: rgba(40, 40, 44, 0.86); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
@@ -225,10 +226,31 @@
     const liveEl = opts.global ? document.documentElement : stage;
     const passSelector = opts.global ? 'a, button, input, select, textarea, label, [data-pass]' : '[data-pass]';
     let enabled = opts.active !== false;
+    // Touch and pen have no hover, so the hand waits where it was last left and jumps to the
+    // finger when it lands. Only one finger draws at a time.
+    let touchId = null;
+    let lastType = 'mouse';
+    window.addEventListener('pointerdown', e => { lastType = e.pointerType || 'mouse'; }, true);
+    function restPoint() {
+      const t = targets().find(x => x.kind === 'point');
+      return t ? { x: t.x + t.w * 0.5, y: t.y + t.h * 0.55 } : { x: W * 0.5, y: H * 0.45 };
+    }
     function onToolbar(e) {
       return (toolbar && toolbar.contains(e.target)) || Boolean(e.target.closest && e.target.closest(passSelector));
     }
     source.addEventListener('pointermove', e => {
+      if (e.pointerType !== 'mouse' && enabled && e.pointerId === touchId) {
+        lastReal = performance.now();
+        const moves = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
+        (moves.length ? moves : [e]).forEach(m => {
+          cursor = local(m);
+          if (downAt) {
+            extend(cursor);
+          }
+        });
+        dirty = true;
+        return;
+      }
       if (e.pointerType !== 'mouse' || !enabled) {
         return;
       }
@@ -251,6 +273,18 @@
       }
     });
     source.addEventListener('pointerdown', e => {
+      if (e.pointerType !== 'mouse' && enabled && !onToolbar(e)) {
+        if (touchId !== null) {
+          return;
+        }
+        touchId = e.pointerId;
+        e.preventDefault();
+        ensureAudio();
+        lastReal = performance.now();
+        cursor = local(e);
+        press(cursor);
+        return;
+      }
       if (e.pointerType !== 'mouse' || !enabled || onToolbar(e)) {
         return;
       }
@@ -265,6 +299,14 @@
         release();
       }
     });
+    ['pointerup', 'pointercancel'].forEach(t => window.addEventListener(t, e => {
+      if (e.pointerId !== touchId) {
+        return;
+      }
+      touchId = null;
+      release();
+      dirty = true;
+    }));
     source.addEventListener('click', e => {
       if (enabled && !onToolbar(e) && liveEl.classList.contains('th-live')) {
         e.preventDefault();
@@ -275,17 +317,26 @@
       enabled = true;
       ensureAudio();
       lastReal = performance.now();
-      cursor = e ? local(e) : cursor;
-      gripX = null;
+      if (lastType === 'mouse') {
+        cursor = e ? local(e) : cursor;
+        gripX = null;
+      } else {
+        cursor = cursor || restPoint();
+      }
       liveEl.classList.add('th-live');
+      if (!opts.global) {
+        stage.classList.add('th-touch');
+      }
       dirty = true;
     }
     function deactivate() {
       enabled = false;
       release();
       cursor = null;
+      touchId = null;
       strokes.length = 0;
       liveEl.classList.remove('th-live');
+      stage.classList.remove('th-touch');
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
