@@ -95,7 +95,7 @@ h1 { margin: 0; font-weight: 600; font-size: clamp(36px, 5.6vw, 56px); line-heig
 .btn.ghost svg { width: 13px; height: 13px; }
 .ver { margin: -2px 0 0; font: 400 11.5px var(--mono); color: var(--muted); }
 
-.picker { position: absolute; z-index: 4; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom, 0px)); display: flex; align-items: center; gap: 2px; padding: 5px; border-radius: 15px; background: rgba(25, 8, 20, .72); border: .5px solid rgba(255, 240, 225, .12); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 8px 24px -10px rgba(58, 36, 23, .35); }
+.picker { position: absolute; z-index: 6; left: 0; right: 0; margin-inline: auto; width: max-content; max-width: calc(100% - 16px); flex-wrap: wrap; justify-content: center; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); display: flex; align-items: center; gap: 2px; padding: 5px; border-radius: 15px; background: rgba(25, 8, 20, .72); border: .5px solid rgba(255, 240, 225, .12); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 8px 24px -10px rgba(58, 36, 23, .35); }
 .picker button { all: unset; cursor: pointer; position: relative; width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; }
 .picker img { width: 28px; height: 28px; object-fit: contain; pointer-events: none; transition: transform .18s cubic-bezier(.3, 1.6, .5, 1); }
 @media (hover: hover) { .picker > button:hover img, .picker > button:hover .laser { transform: translateY(-3px) scale(1.14); } }
@@ -115,10 +115,14 @@ h1 { margin: 0; font-weight: 600; font-size: clamp(36px, 5.6vw, 56px); line-heig
   .pop-grid button:hover { background: rgba(242, 234, 216, .08); }
   .pop-grid button:hover img { transform: translateY(-2px) scale(1.1); }
 }
-.hint { display: none; position: absolute; z-index: 3; left: 50%; transform: translateX(-50%); top: 78px; width: max-content; max-width: calc(100% - 32px); padding: 6px 12px; border-radius: 999px; background: rgba(25, 8, 20, .62); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); font: 400 11.5px/1.4 var(--mono); color: #f6e6d6; text-align: center; pointer-events: none; transition: opacity .2s ease; }
+.hint { display: none; position: absolute; z-index: 6; left: 50%; transform: translateX(-50%); top: 78px; width: max-content; max-width: calc(100% - 32px); padding: 6px 12px; border-radius: 999px; background: rgba(25, 8, 20, .62); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); font: 400 11.5px/1.4 var(--mono); color: #f6e6d6; text-align: center; pointer-events: none; transition: opacity .2s ease; }
 @media (hover: none), (pointer: coarse) { .hint { display: block; } }
 .picker .done { display: none; width: auto; height: 30px; margin-left: 3px; padding: 0 12px; border-radius: 9px; font: 500 12px var(--mono); color: var(--btn-fg); background: var(--btn); white-space: nowrap; }
-@media (hover: none), (pointer: coarse) { .stage.on .picker .done { display: block; } }
+@media (hover: none), (pointer: coarse) {
+  .stage.on .picker .done { display: block; }
+  /* Keep the bar (and Clear) on screen while drawing, even when zoomed in or scrolled. */
+  .stage.on .picker { position: fixed; }
+}
 .pop-grid button[aria-pressed="true"] { background: rgba(242, 234, 216, .14); }
 .pop-grid img { width: 32px; height: 32px; }
 
@@ -137,12 +141,12 @@ kbd { font: 500 12px var(--mono); color: var(--fg); padding: 3px 6px; border-rad
   .intro { padding: 30px 18px 26px; }
   .picker > button { width: 34px; height: 34px; }
   .picker > button img { width: 24px; height: 24px; }
-  .picker > [data-style="astro"], .picker > [data-style="skeleton"], .picker > [data-style="holo"] { display: none; }
+  .picker > [data-style="astro"]:not([aria-pressed="true"]), .picker > [data-style="skeleton"]:not([aria-pressed="true"]), .picker > [data-style="holo"]:not([aria-pressed="true"]) { display: none; }
   .picker .count { padding: 0 9px; }
   .picker .sep { margin: 0 4px 0 2px; }
 }
 @media (max-width: 400px) {
-  .stage.on .picker > [data-style="robot"], .stage.on .picker .sep { display: none; }
+  .picker .sep { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .btn, .picker img, .laser, .picker .count { transition: none; } }
 </style>
@@ -205,7 +209,24 @@ kbd { font: 500 12px var(--mono); color: var(--fg); padding: 3px 6px; border-rad
   const api = TinyHandDemo.mount(stage, { toolbar: false, autoplay: false, depthW: 0.3, start: stage.dataset.start, active: false });
   api.deactivate();
   const hint = document.getElementById('hint');
+  // On phones the back button puts the hand away, so it is never stuck on the page.
+  const touchy = window.matchMedia('(hover: none), (pointer: coarse)').matches;
+  let pushed = false;
+  window.addEventListener('popstate', () => {
+    if (!pushed) {
+      return;
+    }
+    pushed = false;
+    setLive(false);
+  });
   function setLive(on, e) {
+    if (touchy && on && !pushed) {
+      history.pushState({ tinyhand: true }, '');
+      pushed = true;
+    } else if (!on && pushed) {
+      pushed = false;
+      history.back();
+    }
     if (on) {
       api.activate(e);
     } else {
@@ -261,7 +282,7 @@ kbd { font: 500 12px var(--mono); color: var(--fg); padding: 3px 6px; border-rad
   const done = document.createElement('button');
   done.type = 'button';
   done.className = 'done';
-  done.textContent = 'Done';
+  done.textContent = 'Clear';
   done.setAttribute('aria-label', 'Put the hand away');
   done.addEventListener('click', () => {
     setOpen(false);
