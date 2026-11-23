@@ -67,7 +67,7 @@ body { background: var(--bg); color: var(--fg); font-family: var(--sans); -webki
 a, button { -webkit-tap-highlight-color: transparent; }
 .gutter { padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
 
-.stage { position: relative; overflow: hidden; height: clamp(680px, 96vh, 960px); display: flex; flex-direction: column; padding-bottom: 84px; }
+.stage { position: relative; overflow: hidden; height: clamp(680px, 100vh, 1000px); height: clamp(680px, 100svh, 1000px); display: flex; flex-direction: column; padding-bottom: 76px; }
 .art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
 .rest { position: absolute; right: 13%; bottom: 30%; width: 2px; height: 2px; pointer-events: none; }
 @media (max-width: 640px) { .rest { right: 36%; bottom: 23%; } }
@@ -95,38 +95,51 @@ h1 { margin: 0; font-weight: 600; font-size: clamp(36px, 5.6vw, 56px); line-heig
 .btn.ghost svg { width: 13px; height: 13px; }
 .ver { margin: -2px 0 0; font: 400 11.5px var(--mono); color: var(--muted); }
 
-.picker { position: absolute; z-index: 6; left: 0; right: 0; margin-inline: auto; width: max-content; max-width: calc(100% - 16px); flex-wrap: wrap; justify-content: center; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); display: flex; align-items: center; gap: 2px; padding: 5px; border-radius: 15px; background: rgba(25, 8, 20, .72); border: .5px solid rgba(255, 240, 225, .12); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 8px 24px -10px rgba(58, 36, 23, .35); }
-.picker button { all: unset; cursor: pointer; position: relative; width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; }
-.picker img { width: 28px; height: 28px; object-fit: contain; pointer-events: none; transition: transform .18s cubic-bezier(.3, 1.6, .5, 1); }
-@media (hover: hover) { .picker > button:hover img, .picker > button:hover .laser { transform: translateY(-3px) scale(1.14); } }
-.stage.on .picker > button[aria-pressed="true"] { background: rgba(255, 240, 225, .16); }
-.picker > button[aria-pressed="true"]::after { content: ""; position: absolute; bottom: 1px; left: 50%; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: #f6e6d6; }
-.picker .sep { width: 1px; height: 22px; margin: 0 6px 0 4px; background: rgba(255, 240, 225, .18); }
-.laser { width: 10px; height: 10px; border-radius: 50%; background: #ff2a1f; box-shadow: 0 0 10px 2px rgba(255, 42, 31, .4); transition: transform .18s cubic-bezier(.3, 1.6, .5, 1); }
-.picker .count { width: auto; height: 30px; margin-right: 3px; padding: 0 12px; border-radius: 9px; font: 500 12px var(--mono); color: #f6e6d6; white-space: nowrap; background: rgba(255, 240, 225, .1); transition: background .15s ease; }
-.picker .count:hover, .picker .count[aria-expanded="true"] { background: rgba(255, 240, 225, .2); }
-.pop { position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%); width: min(452px, calc(100vw - 32px)); padding: 14px; border-radius: 18px; background: #221420; color: var(--fg); box-shadow: 0 24px 50px -20px rgba(0, 0, 0, .6), 0 0 0 .5px rgba(242, 234, 216, .14); }
+/* Dock: one floating bar fixed near the bottom of the screen, like the macOS Dock. */
+.dock { position: fixed; z-index: 20; left: 0; right: 0; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); margin-inline: auto; width: max-content; max-width: calc(100% - 12px); display: flex; align-items: flex-end; gap: 4px; padding: 6px 7px; border-radius: 20px; background: rgba(30, 12, 24, .58); border: .5px solid rgba(255, 240, 225, .16); backdrop-filter: blur(20px) saturate(1.4); -webkit-backdrop-filter: blur(20px) saturate(1.4); box-shadow: 0 18px 40px -14px rgba(0, 0, 0, .55), inset 0 .5px 0 rgba(255, 255, 255, .08); animation: dock-in .6s cubic-bezier(.2, .9, .3, 1.1) both .15s; }
+@keyframes dock-in { from { transform: translateY(24px); opacity: 0; } }
+.dock button { all: unset; box-sizing: border-box; cursor: pointer; position: relative; flex: none; }
+.th-live .dock, .th-live .dock * { cursor: default !important; }
+.th-live .dock button { cursor: pointer !important; }
+.dock-item { width: 44px; height: 44px; display: grid; place-items: center; -webkit-tap-highlight-color: transparent; }
+.dock-item[hidden] { display: none; }
+.dock-icon { display: grid; place-items: center; width: 100%; height: 100%; }
+.dock-item img, .dock-item .laser { transform-origin: 50% 100%; transition: transform .22s cubic-bezier(.25, .8, .3, 1); will-change: transform; }
+.dock-item img { width: 32px; height: 32px; object-fit: contain; pointer-events: none; }
+.dock.near .dock-item img, .dock.near .dock-item .laser { transition-duration: .09s; }
+.dock-item.press img, .dock-item.press .laser { transform: scale(.86) !important; transition-duration: .08s; }
+.dock-item.bounce .dock-icon { animation: dock-bounce .62s cubic-bezier(.3, .7, .4, 1); }
+@keyframes dock-bounce { 30% { transform: translateY(-12px); } 58% { transform: translateY(0); } 78% { transform: translateY(-3px); } 100% { transform: translateY(0); } }
+.dock-item::after { content: ""; position: absolute; bottom: -3px; left: 50%; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: #f6e6d6; box-shadow: 0 0 6px rgba(246, 230, 214, .6); opacity: 0; transform: scale(.4); transition: opacity .25s ease, transform .25s ease; }
+.stage.on .dock-item[aria-pressed="true"]::after { opacity: 1; transform: none; }
+.tip { position: absolute; bottom: calc(100% + 16px); left: 50%; transform: translate(-50%, 4px); padding: 4px 9px; border-radius: 7px; background: rgba(30, 12, 24, .86); color: #f6e6d6; font: 500 11.5px var(--sans); white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .15s ease, transform .15s ease; box-shadow: 0 0 0 .5px rgba(255, 240, 225, .14); }
+.dock-item.show-tip .tip { opacity: 1; transform: translate(-50%, 0); }
+@media (hover: hover) and (pointer: fine) { .dock-item:hover .tip { opacity: 1; transform: translate(-50%, 0); } }
+.dock .sep { flex: none; align-self: center; width: 1px; height: 28px; margin: 0 4px; background: rgba(255, 240, 225, .2); }
+.laser { width: 12px; height: 12px; border-radius: 50%; background: #ff2a1f; box-shadow: 0 0 10px 2px rgba(255, 42, 31, .4); }
+.dock .count, .dock .clear { align-self: center; height: 32px; padding: 0 11px; border-radius: 10px; font: 500 12px var(--mono); white-space: nowrap; transition: background .15s ease, transform .15s ease; }
+.dock .count { color: #f6e6d6; background: rgba(255, 240, 225, .1); }
+.dock .count:hover, .dock .count[aria-expanded="true"] { background: rgba(255, 240, 225, .2); }
+.dock .count:active, .dock .clear:active { transform: scale(.94); }
+.dock .clear { color: rgba(246, 230, 214, .38); background: rgba(255, 240, 225, .05); pointer-events: none; transition: color .25s ease, background .25s ease, transform .15s ease; }
+.stage.on .dock .clear { color: var(--btn-fg); background: var(--btn); pointer-events: auto; }
+.pop { position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%); width: min(452px, calc(100vw - 24px)); padding: 14px; border-radius: 18px; background: rgba(34, 20, 32, .96); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); color: var(--fg); box-shadow: 0 24px 50px -20px rgba(0, 0, 0, .6), 0 0 0 .5px rgba(242, 234, 216, .14); animation: pop-in .2s cubic-bezier(.2, .9, .3, 1); transform-origin: 50% 100%; }
+@keyframes pop-in { from { opacity: 0; transform: translateX(-50%) translateY(8px) scale(.97); } }
 .pop[hidden] { display: none; }
 .pop-h { margin: 0 4px 10px; display: flex; justify-content: space-between; font-size: 13.5px; }
 .pop-h span { font: 400 12px var(--mono); color: var(--muted); }
 .pop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 2px; }
-.pop-grid button { width: auto; height: 46px; }
+.pop-grid button { all: unset; box-sizing: border-box; cursor: pointer; height: 46px; border-radius: 10px; display: grid; place-items: center; }
+.pop-grid img { width: 32px; height: 32px; object-fit: contain; pointer-events: none; transition: transform .18s cubic-bezier(.3, 1.6, .5, 1); }
 @media (hover: hover) {
   .pop-grid button:hover { background: rgba(242, 234, 216, .08); }
   .pop-grid button:hover img { transform: translateY(-2px) scale(1.1); }
 }
-.hint { display: none; position: absolute; z-index: 6; left: 50%; transform: translateX(-50%); top: 78px; width: max-content; max-width: calc(100% - 32px); padding: 6px 12px; border-radius: 999px; background: rgba(25, 8, 20, .62); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); font: 400 11.5px/1.4 var(--mono); color: #f6e6d6; text-align: center; pointer-events: none; transition: opacity .2s ease; }
-@media (hover: none), (pointer: coarse) { .hint { display: block; } }
-.picker .done { display: none; width: auto; height: 30px; margin-left: 3px; padding: 0 12px; border-radius: 9px; font: 500 12px var(--mono); color: var(--btn-fg); background: var(--btn); white-space: nowrap; }
-@media (hover: none), (pointer: coarse) {
-  .stage.on .picker .done { display: block; }
-  /* Keep the bar (and Clear) on screen while drawing, even when zoomed in or scrolled. */
-  .stage.on .picker { position: fixed; }
-}
 .pop-grid button[aria-pressed="true"] { background: rgba(242, 234, 216, .14); }
-.pop-grid img { width: 32px; height: 32px; }
+.hint { display: none; position: absolute; z-index: 6; left: 50%; transform: translateX(-50%); top: 78px; width: max-content; max-width: calc(100% - 32px); padding: 6px 12px; border-radius: 999px; background: rgba(25, 8, 20, .62); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); font: 400 11.5px/1.4 var(--mono); color: #f6e6d6; text-align: center; pointer-events: none; }
+@media (hover: none), (pointer: coarse) { .hint { display: block; } }
 
-.more { max-width: 720px; margin: 0 auto; padding-block: 72px 44px; display: flex; flex-direction: column; gap: 40px; }
+.more { max-width: 720px; margin: 0 auto; padding-block: 72px 104px; display: flex; flex-direction: column; gap: 40px; }
 .three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; text-align: center; }
 .three h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
 .three p { margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--muted); }
@@ -139,16 +152,26 @@ kbd { font: 500 12px var(--mono); color: var(--fg); padding: 3px 6px; border-rad
   .three { grid-template-columns: minmax(0, 1fr); gap: 18px; }
   .lede { font-size: 16.5px; }
   .intro { padding: 30px 18px 26px; }
-  .picker > button { width: 34px; height: 34px; }
-  .picker > button img { width: 24px; height: 24px; }
-  .picker > [data-style="astro"]:not([aria-pressed="true"]), .picker > [data-style="skeleton"]:not([aria-pressed="true"]), .picker > [data-style="holo"]:not([aria-pressed="true"]) { display: none; }
-  .picker .count { padding: 0 9px; }
-  .picker .sep { margin: 0 4px 0 2px; }
+  .dock-item { width: 40px; height: 40px; }
+  .dock-item img { width: 29px; height: 29px; }
+  .dock .quick[data-style="astro"]:not([aria-pressed="true"]), .dock .quick[data-style="skeleton"]:not([aria-pressed="true"]), .dock .quick[data-style="holo"]:not([aria-pressed="true"]) { display: none; }
 }
-@media (max-width: 400px) {
-  .picker .sep { display: none; }
+/* Narrow or zoomed-in screens: fewer hands, never a second row. The picked hand always stays. */
+@media (max-width: 380px) {
+  .dock { gap: 2px; padding: 5px; }
+  .dock .sep { margin: 0 2px; }
+  .dock .quick[data-style="plush"]:not([aria-pressed="true"]), .dock .quick[data-style="robot"]:not([aria-pressed="true"]) { display: none; }
 }
-@media (prefers-reduced-motion: reduce) { .btn, .picker img, .laser, .picker .count { transition: none; } }
+@media (max-width: 300px) {
+  .hint { display: none !important; }
+  .dock .quick[data-style="coral"]:not([aria-pressed="true"]) { display: none; }
+  .dock .count .n { display: none; }
+}
+@media (max-width: 240px) {
+  .dock .quick:not([aria-pressed="true"]), .dock .sep { display: none; }
+  .dock .count, .dock .clear { padding: 0 9px; }
+}
+@media (prefers-reduced-motion: reduce) { .btn, .dock *, .pop-grid img { transition: none !important; animation: none !important; } .dock, .pop { animation: none; } }
 </style>
 </head>
 <body>
@@ -172,7 +195,7 @@ kbd { font: 500 12px var(--mono); color: var(--fg); padding: 3px 6px; border-rad
     </div>
     <span class="rest" data-target="point" aria-hidden="true"></span>
     <p class="hint" id="hint" aria-live="polite">Tap a hand, then draw with your finger</p>
-    <div class="picker" id="picker" data-pass aria-label="Pick a hand"></div>
+    <div class="dock" id="picker" data-pass role="toolbar" aria-label="Pick a hand"></div>
   </section>
 
   <section class="more gutter">
@@ -233,62 +256,104 @@ kbd { font: 500 12px var(--mono); color: var(--fg); padding: 3px 6px; border-rad
       api.deactivate();
     }
     stage.classList.toggle('on', on);
+    const c = picker.querySelector('.clear');
+    if (c) {
+      c.setAttribute('aria-disabled', String(!on));
+    }
     hint.textContent = on ? 'One finger draws · two fingers scroll' : 'Tap a hand, then draw with your finger';
   }
 
   const styles = api.hands.concat([{ id: 'laser', name: 'Laser dot' }]);
+  const byId = id => styles.find(h => h.id === id);
+  const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  function button(hand, onPick) {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.dataset.style = hand.id;
-    b.title = hand.name;
-    b.setAttribute('aria-label', hand.name);
-    b.innerHTML = hand.src ? `<img src="${hand.src}" alt="">` : '<span class="laser"></span>';
-    b.addEventListener('click', e => {
-      if (api.active && api.style === hand.id) {
-        setLive(false);
-        onPick();
-        return;
-      }
-      api.setStyle(hand.id);
-      setLive(true, e);
-      onPick();
-    });
-    return b;
+  function iconHTML(hand) {
+    return hand.src ? `<img src="${hand.src}" alt="">` : '<span class="laser"></span>';
+  }
+  function pick(id, e) {
+    if (api.active && api.style === id) {
+      setLive(false);
+      return;
+    }
+    api.setStyle(id);
+    setLive(true, e);
+    bounce(id);
   }
 
-  PICKS.forEach(id => picker.appendChild(button(styles.find(h => h.id === id), () => {})));
+  // A dock icon: the outer button keeps its size, the icon inside bounces, the image magnifies.
+  function dockItem(hand, cls) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = `dock-item ${cls}`;
+    b.dataset.style = hand.id;
+    b.setAttribute('aria-label', hand.name);
+    b.innerHTML = `<span class="dock-icon">${iconHTML(hand)}</span><span class="tip">${hand.name}</span>`;
+    b.addEventListener('click', e => pick(b.dataset.style, e));
+    b.addEventListener('pointerdown', e => {
+      if (e.pointerType !== 'mouse') {
+        b.classList.add('press');
+      }
+    });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => b.addEventListener(t, () => b.classList.remove('press')));
+    return b;
+  }
+  function setItem(b, hand) {
+    b.dataset.style = hand.id;
+    b.setAttribute('aria-label', hand.name);
+    b.querySelector('.dock-icon').innerHTML = iconHTML(hand);
+    b.querySelector('.tip').textContent = hand.name;
+  }
+
+  PICKS.forEach(id => picker.appendChild(dockItem(byId(id), 'quick')));
 
   const sep = document.createElement('span');
   sep.className = 'sep';
   picker.appendChild(sep);
 
+  // Like the Dock's recent apps: a hand picked from the full list gets its own spot here.
+  const slot = dockItem(byId('lavender'), 'slot');
+  slot.hidden = true;
+  picker.appendChild(slot);
+
   const all = document.createElement('button');
   all.type = 'button';
   all.className = 'count';
   all.setAttribute('aria-expanded', 'false');
-  all.textContent = `All ${styles.length}`;
+  all.setAttribute('aria-label', `All ${styles.length} pointers`);
+  all.innerHTML = `All<span class="n"> ${styles.length}</span>`;
   picker.appendChild(all);
+
+  const clear = document.createElement('button');
+  clear.type = 'button';
+  clear.className = 'clear';
+  clear.textContent = 'Clear';
+  clear.setAttribute('aria-label', 'Put the hand away');
+  clear.setAttribute('aria-disabled', 'true');
+  clear.addEventListener('click', () => {
+    setOpen(false);
+    setLive(false);
+  });
+  picker.appendChild(clear);
 
   const pop = document.createElement('div');
   pop.className = 'pop';
   pop.hidden = true;
   pop.innerHTML = `<p class="pop-h"><b>${styles.length} pointers</b><span>pick one to try it</span></p><div class="pop-grid"></div>`;
   const grid = pop.querySelector('.pop-grid');
-  styles.forEach(hand => grid.appendChild(button(hand, () => setOpen(false))));
-  picker.appendChild(pop);
-
-  const done = document.createElement('button');
-  done.type = 'button';
-  done.className = 'done';
-  done.textContent = 'Clear';
-  done.setAttribute('aria-label', 'Put the hand away');
-  done.addEventListener('click', () => {
-    setOpen(false);
-    setLive(false);
+  styles.forEach(hand => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.style = hand.id;
+    b.title = hand.name;
+    b.setAttribute('aria-label', hand.name);
+    b.innerHTML = iconHTML(hand);
+    b.addEventListener('click', e => {
+      setOpen(false);
+      pick(hand.id, e);
+    });
+    grid.appendChild(b);
   });
-  picker.appendChild(done);
+  picker.appendChild(pop);
 
   function setOpen(open) {
     pop.hidden = !open;
@@ -312,7 +377,69 @@ kbd { font: 500 12px var(--mono); color: var(--fg); padding: 3px 6px; border-rad
     setLive(false);
   });
 
-  const sync = id => picker.querySelectorAll('button[data-style]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.style === id)));
+  function itemFor(id) {
+    return Array.from(picker.querySelectorAll('.dock-item')).find(b => b.dataset.style === id && !b.hidden);
+  }
+  let tipTimer = 0;
+  function bounce(id) {
+    const b = itemFor(id);
+    if (!b) {
+      return;
+    }
+    if (!still) {
+      b.classList.remove('bounce');
+      void b.offsetWidth;
+      b.classList.add('bounce');
+    }
+    if (touchy) {
+      // No hover on phones, so show the name briefly instead.
+      picker.querySelectorAll('.show-tip').forEach(x => x.classList.remove('show-tip'));
+      b.classList.add('show-tip');
+      clearTimeout(tipTimer);
+      tipTimer = setTimeout(() => b.classList.remove('show-tip'), 1100);
+    }
+  }
+  picker.addEventListener('animationend', e => e.target.closest('.dock-item') && e.target.closest('.dock-item').classList.remove('bounce'));
+
+  // Magnification: icons near the pointer grow and rise, falling off smoothly with distance.
+  const MAX = 0.42, RANGE = 110;
+  function magnify(x) {
+    picker.querySelectorAll('.dock-item').forEach(b => {
+      const r = b.getBoundingClientRect();
+      if (!r.width) {
+        return;
+      }
+      const d = Math.abs(x - (r.left + r.width / 2));
+      const k = d >= RANGE ? 0 : Math.pow(Math.cos((d / RANGE) * Math.PI / 2), 2);
+      const s = 1 + MAX * k;
+      const icon = b.querySelector('img, .laser');
+      icon.style.transform = k ? `translateY(${(-7 * k).toFixed(2)}px) scale(${s.toFixed(3)})` : '';
+    });
+  }
+  if (!still && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+    picker.addEventListener('pointermove', e => {
+      if (e.pointerType !== 'mouse' || !pop.hidden && pop.contains(e.target)) {
+        return;
+      }
+      picker.classList.add('near');
+      magnify(e.clientX);
+    });
+    picker.addEventListener('pointerleave', () => {
+      picker.classList.remove('near');
+      magnify(-1e4);
+    });
+  }
+
+  const sync = id => {
+    const quick = PICKS.includes(id);
+    slot.hidden = quick;
+    if (quick) {
+      slot.dataset.style = '';
+    } else {
+      setItem(slot, byId(id));
+    }
+    picker.querySelectorAll('button[data-style]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.style === id)));
+  };
   stage.addEventListener('th-style', e => sync(e.detail));
   sync(stage.dataset.start);
 })();
